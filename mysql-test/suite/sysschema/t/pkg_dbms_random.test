@@ -1,0 +1,63 @@
+-- source include/not_embedded.inc
+-- source include/have_innodb.inc
+-- source include/have_perfschema.inc
+
+--echo #
+--echo # MDEV-34327: System package SYS.DBMS_RANDOM
+--echo #
+
+SET sql_mode= oracle;
+
+SET SESSION note_verbosity = "";
+
+SELECT SESSION_Value FROM INFORMATION_SCHEMA.SYSTEM_VARIABLES WHERE VARIABLE_NAME LIKE 'rand_seed1' INTO @orig_seed1;
+
+--echo #
+--echo # Test INITIALIZE
+--echo #
+CALL sys.DBMS_RANDOM.INITIALIZE(1);
+
+--echo #
+--echo # Test INITIALIZE without an argument
+--echo #
+--error ER_SP_WRONG_NO_OF_ARGS
+CALL sys.DBMS_RANDOM.INITIALIZE();
+
+--echo #
+--echo # Test VALUE 
+--echo #
+SELECT sys.dbms_random.value(1.1, 100);
+SELECT sys.dbms_random.value(1.1, 100);
+SELECT sys.dbms_random.value(1.1, 100);
+
+--echo #
+--echo # Test VALUE with 1st argument greater than the 2nd
+--echo #
+--error ER_STD_INVALID_ARGUMENT
+SELECT sys.dbms_random.value(1, 0);
+
+--echo #
+--echo # Test RANDOM
+--echo #
+SELECT sys.dbms_random.random();
+SELECT sys.dbms_random.random();
+SELECT sys.dbms_random.random();
+
+--echo #
+--echo # Test RANDOM with an argument
+--echo #
+--error ER_SP_WRONG_NO_OF_ARGS
+SELECT sys.dbms_random.random(1);
+
+--echo #
+--echo # Test TERMINATE
+--echo #
+CALL sys.dbms_random.terminate();
+
+--echo #
+--echo # Test TERMINATE with an argument
+--echo #
+--error ER_SP_WRONG_NO_OF_ARGS
+CALL sys.dbms_random.terminate(1);
+
+SET SESSION rand_seed1 = CAST(@orig_seed1 AS INT);
