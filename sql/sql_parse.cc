@@ -3254,6 +3254,10 @@ bool Sql_cmd_call::execute(THD *thd)
 {
   TABLE_LIST *all_tables= thd->lex->query_tables;
   sp_head *sp;
+  if(!thd->spcont)
+  {
+    thd->reset_backtrace_data();
+  }
   /*
     This will cache all SP and SF and open and lock all tables
     required for execution.
@@ -7509,6 +7513,26 @@ void THD::reset_for_next_command(bool do_clear_error)
                  is_current_stmt_binlog_format_row()));
 #endif
   DBUG_VOID_RETURN;
+}
+
+/**
+  Reset/clear all backtrace data at every start of command execution.
+*/
+
+void THD::reset_backtrace_data()
+{
+  first_call= TRUE;
+  instr_component_list.clear();
+  error_stack.clear();
+  bt_list.clear();
+  erroring_bt_list.clear();
+  errframes_strs.clear();
+  normalframes_strs.clear();
+  first_2_frames.clear();
+  variables.backtrace_str= (char*)"";
+  variables.errstack_str= (char*)"";
+  errstack_str.set("", 0, system_charset_info);
+  backtrace_std_str.set("", 0, system_charset_info);
 }
 
 

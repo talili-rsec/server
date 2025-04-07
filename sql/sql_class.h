@@ -30,6 +30,7 @@
 #include "log.h"
 #include "rpl_tblmap.h"
 #include "mdl.h"
+#include "backtrace.h"
 #include "field.h"                              // Create_field
 #include "opt_trace_context.h"
 #include "probes_mysql.h"
@@ -924,6 +925,9 @@ typedef struct system_variables
   my_bool binlog_alter_two_phase;
 
   Charset_collation_map_st character_set_collations;
+
+  const char* backtrace_str;
+  const char* errstack_str;
 } SV;
 
 /**
@@ -2972,7 +2976,8 @@ class THD: public THD_count, /* this must be first */
            public Item_change_list,
            public MDL_context_owner,
            public Open_tables_state,
-           public Sp_caches
+           public Sp_caches,
+           public Backtrace
 {
 private:
   inline bool is_stmt_prepare() const
@@ -3006,6 +3011,7 @@ public:
   MDL_request *backup_commit_lock;
 
   void reset_for_next_command(bool do_clear_errors= 1);
+  void reset_backtrace_data();
 
 #ifdef EMBEDDED_LIBRARY
   struct st_mysql  *mysql;

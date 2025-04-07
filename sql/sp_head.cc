@@ -1235,6 +1235,8 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
       break;
     }
 
+    generate_non_erroring_bt_part(thd, i);
+
     /* Reset number of warnings for this query. */
     thd->get_stmt_da()->reset_for_next_command();
 
@@ -1489,12 +1491,138 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
       da->copy_sql_conditions_from_wi(thd, &sp_wi);
       da->remove_marked_sql_conditions();
       if (i != NULL)
-        push_warning_printf(thd, Sql_condition::WARN_LEVEL_NOTE,
-                            ER_SP_STACK_TRACE,
-                            ER_THD(thd, ER_SP_STACK_TRACE),
-                            i->m_lineno,
-                            m_qname.str != NULL ? m_qname.str :
-                                                  "anonymous block");
+        {
+          push_warning_printf(thd, Sql_condition::WARN_LEVEL_NOTE,
+                              ER_SP_STACK_TRACE,
+                              ER_THD(thd, ER_SP_STACK_TRACE),
+                              i->m_lineno,
+                              m_qname.str != NULL ? m_qname.str :
+                                                    "anonymous block");
+
+          //Non-erroring part of the backtraces
+
+          Backtrace_info_type instr_and_linno;
+          instr_and_linno.line_no= i->m_lineno;
+          instr_and_linno.qname= const_cast<char*>(m_qname.str);
+          thd->erroring_bt_list.push(instr_and_linno);
+         
+          Error_info_type msg_and_errno;
+          msg_and_errno.err_no= da->get_sql_errno();
+          msg_and_errno.msg= strdup(da->message());
+          thd->error_stack.push(msg_and_errno); 
+
+          //check if we've returned back to the 2nd or starting sp
+          if(thd->error_stack.size())
+          {
+            if(thd->first_2_frames.size() == 2
+                ||
+                thd->first_2_frames.size() == 1
+                )
+            {
+              DBUG_ASSERT(thd->first_2_frames.back()->ptr());
+              DBUG_ASSERT(thd->first_2_frames.front()->ptr());
+              if ((thd->first_2_frames.size() == 2 && ((
+                  instr_and_linno.qname && 
+                  !strcmp(instr_and_linno.qname, 
+                  thd->first_2_frames.back()->ptr())) ||
+                  (instr_and_linno.qname && 
+                  !strcmp(instr_and_linno.qname, 
+                  thd->first_2_frames.front()->ptr()))))
+                  ||
+                  (thd->first_2_frames.size() == 1 && 
+                  instr_and_linno.qname && 
+                  !strcmp(instr_and_linno.qname, 
+                  thd->first_2_frames.back()->ptr()))
+                  )
+              {
+                //construct backtrace_str starting with reversed errframes_strs
+                int err_frames_strs_size=
+                    static_cast<int>(thd->error_stack.size()); 
+                for(int loop_ctr= err_frames_strs_size - 1; loop_ctr >= 0;
+                      loop_ctr--)
+                {
+                  //construct string with err msg
+                  char err[10]= "";
+
+                  sprintf(err, "%i", thd->error_stack[loop_ctr].err_no);
+                  thd->errstack_str.append(err, strlen(err));
+                  thd->errstack_str.append( ": ", 2);
+                  thd->errstack_str.append(thd->error_stack[
+                      loop_ctr].msg, strlen(thd->error_stack[
+                      loop_ctr].msg));
+                  thd->errstack_str.append('\n');
+
+                  //construct string with no err msg
+                  char line_no_str[20]= "";
+
+                  sprintf(err, "%i", ER_SP_STACK_TRACE);
+                  sprintf(line_no_str, "%i", thd->erroring_bt_list[
+                      loop_ctr].line_no);
+
+                  thd->backtrace_std_str.append(err, strlen(err));
+                  thd->errstack_str.append(err, strlen(err));
+                  thd->backtrace_std_str.append( ": at \"", 6);
+                  thd->errstack_str.append( ": at \"", 6);
+                  thd->backtrace_std_str.append(thd->main_security_ctx.user,
+                      strlen(thd->main_security_ctx.user));
+                  thd->errstack_str.append(thd->main_security_ctx.user, strlen(
+                      thd->main_security_ctx.user));
+                  thd->backtrace_std_str.append(".", 1);
+                  thd->errstack_str.append(".", 1);
+                  thd->backtrace_std_str.append(
+                      thd->erroring_bt_list[loop_ctr].qname, 
+                      strlen( thd->erroring_bt_list[loop_ctr].qname));
+                  thd->errstack_str.append(
+                      thd->erroring_bt_list[loop_ctr].qname, 
+                      strlen( thd->erroring_bt_list[loop_ctr].qname));
+                  thd->backtrace_std_str.append("\" at line ", 10);
+                  thd->errstack_str.append("\" at line ", 10);
+                  thd->backtrace_std_str.append(line_no_str,
+                      strlen(line_no_str));
+                  thd->errstack_str.append(line_no_str, strlen(line_no_str));
+                  thd->backtrace_std_str.append('\n');
+                  thd->errstack_str.append('\n');
+
+                }
+                //append the non-erroring frames also in reversed order
+                int normalframes_strs_size=
+                    static_cast<int>(thd->bt_list.size()); 
+                for(int loop_ctr= normalframes_strs_size - 2; loop_ctr >= 0;
+                    loop_ctr--)
+                {
+                  char err[10]= "";
+                  char line_no_str[20]= "";
+                  sprintf(err, "%i", ER_SP_STACK_TRACE);
+                  sprintf(line_no_str, "%i", thd->bt_list[loop_ctr].line_no);
+                  thd->backtrace_std_str.append(err, strlen(err));
+                  thd->errstack_str.append(err, strlen(err));
+                  thd->backtrace_std_str.append( ": at \"", 6);
+                  thd->errstack_str.append( ": at \"", 6);
+                  thd->backtrace_std_str.append(thd->main_security_ctx.user,
+                      strlen(thd->main_security_ctx.user));
+                  thd->errstack_str.append(thd->main_security_ctx.user,
+                      strlen(thd->main_security_ctx.user));
+                  thd->backtrace_std_str.append(".", 1);
+                  thd->errstack_str.append(".", 1);
+                  thd->backtrace_std_str.append(thd->bt_list[loop_ctr].qname,
+                      strlen( thd->bt_list[loop_ctr].qname));
+                  thd->errstack_str.append(thd->bt_list[loop_ctr].qname,
+                      strlen( thd->bt_list[loop_ctr].qname));
+                  thd->backtrace_std_str.append("\" at line ", 10);
+                  thd->errstack_str.append("\" at line ", 10);
+                  thd->backtrace_std_str.append(line_no_str,
+                      strlen(line_no_str));
+                  thd->errstack_str.append(line_no_str, strlen(line_no_str));
+                  thd->backtrace_std_str.append('\n');
+                  thd->errstack_str.append('\n');
+                }
+                thd->variables.backtrace_str= thd->backtrace_std_str.c_ptr();
+                thd->variables.errstack_str= thd->errstack_str.c_ptr();
+              }
+              
+            }
+          }
+        }
     }
   }
 
@@ -1563,6 +1691,133 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
   DBUG_RETURN(err_status);
 }
 
+/**
+  Generate the normal (non-erroring) part of the backtrace.  The sequence of
+  the members here are the reverse of the sequence of the members of the 
+  erroring part of the backtrace.
+
+  @param thd                  Thread context.
+  @param i                    sp_instr that provides the line numbers for the
+                              normal part of the backtrace.
+
+  @return void.
+*/
+
+void sp_head::generate_non_erroring_bt_part(THD *thd, sp_instr *i)
+{
+  //Non-erroring part of the backtraces
+
+  Backtrace_info_type instr_and_lineno;
+  instr_and_lineno.line_no= i->m_lineno;
+  instr_and_lineno.qname= const_cast<char*>(m_qname.str);
+
+  thd->instr_component_list.push(instr_and_lineno);
+  /*
+    We've moved to the next real procedure already.  We need to maintain
+    1 entry of the procedure only for the non-erroring part of the
+    backtraces.
+
+    For e.g.:
+
+    -----------------------------------------------------------------------
+    | nth pass through the if condition   | m_qname.str     | i->m_lineno |
+    |-------------------------------------+-----------------+-------------|
+    | 1                                   | test.pkg1.proc2 | 5           |   
+    | 2                                   | test.pkg1.proc2 | 5           |               
+    | 3                                   | test.pkg1.proc2 | 5           |    
+    | 4                                   | test.proc1_1    | 2           |    
+    -----------------------------------------------------------------------
+
+    As shown in the table above, it is still on the 4th pass of the below if
+    condition that we're encountering the next real procedure (frame, in call
+    stack terminology).  thd->instr_component_list is designed to be a list
+    containing unique procedure names
+  */
+  if(thd->instr_component_list.size() > 1 && thd->instr_component_list[
+      thd->instr_component_list.size() - 2].qname && instr_and_lineno.qname &&
+      strcmp(thd->instr_component_list[thd->instr_component_list.size() - 2].qname, 
+      instr_and_lineno.qname))
+  {
+    thd->instr_component_list.del(0);
+  }
+  else if(thd->instr_component_list.size() > 2)
+  {
+    /*
+      Each procedure execution that aren't yet produing errors are usually 
+      visited in the do-while loop where we're in thrice.  The 1st and the
+      3rd visits have the same line numbers of their instructions.
+    */
+    if(instr_and_lineno.qname && thd->instr_component_list.front()->qname && 
+        !strcmp(instr_and_lineno.qname, ((Backtrace_info_type*) 
+        thd->instr_component_list.front())->qname) &&
+        thd->instr_component_list.front()->line_no == instr_and_lineno.line_no)
+    {
+      thd->bt_list.push(instr_and_lineno);
+      if(thd->first_call || thd->first_2_frames.size() == 1)
+      {
+        thd->first_call= false;
+        String qname(instr_and_lineno.qname, strlen(instr_and_lineno.qname),
+            system_charset_info);
+        thd->first_2_frames.push(qname);
+        qname.release();
+      }
+      for(int loop_ctr = 0; loop_ctr < 2; loop_ctr++)
+      {
+        thd->instr_component_list.del(0);
+
+      }
+    }
+    else
+    {
+      int normalframes_strs_size=
+          static_cast<int>(thd->normalframes_strs.size()); 
+      for(int loop_ctr = normalframes_strs_size - 1; loop_ctr >= 0; loop_ctr--)
+      {
+        thd->normalframes_strs[loop_ctr].set_alloced(NULL, 0, 0);
+      
+      }
+
+    }
+  }
+  //check if we've returned back to the 2nd or starting sp
+  else if(!thd->error_stack.size())
+  {
+    //delete normalframes_strs Strings already as no error occurred
+    if(thd->first_2_frames.size() == 2)
+    {
+      DBUG_ASSERT(thd->first_2_frames.back()->ptr());
+      DBUG_ASSERT(thd->first_2_frames.front()->ptr());
+      if ((instr_and_lineno.qname &&
+          !strcmp(instr_and_lineno.qname, thd->first_2_frames.back()->ptr())) ||
+          (instr_and_lineno.qname &&
+          !strcmp(instr_and_lineno.qname, thd->first_2_frames.front()->ptr())))
+      {
+        int normalframes_strs_size=
+            static_cast<int>(thd->normalframes_strs.size());
+        for(int loop_ctr = normalframes_strs_size - 1; loop_ctr >= 0;
+            loop_ctr--)
+        {
+          thd->normalframes_strs[loop_ctr].set_alloced(NULL, 0, 0);
+        }
+      }
+    }
+    else if(thd->first_2_frames.size() == 1) 
+    {
+      DBUG_ASSERT(thd->first_2_frames.back()->ptr());
+      if (instr_and_lineno.qname && 
+        !strcmp(instr_and_lineno.qname, thd->first_2_frames.back()->ptr()))
+      {
+        int normalframes_strs_size=
+            static_cast<int>(thd->normalframes_strs.size()); 
+        for(int loop_ctr = normalframes_strs_size - 1; loop_ctr >= 0;
+            loop_ctr--)
+        {
+          thd->normalframes_strs[loop_ctr].set_alloced(NULL, 0, 0);
+        }
+      }
+    }
+  }
+}
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 /**

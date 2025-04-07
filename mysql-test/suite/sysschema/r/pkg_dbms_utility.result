@@ -1,0 +1,161 @@
+#
+# MDEV-34330: System package SYS.DBMS_UTILITY
+#
+SET sql_mode= oracle;
+SET SESSION note_verbosity = "";
+#
+# Test GET_TIME
+#
+BEGIN SET timestamp=1216359724; select sys.dbms_utility.get_time(); END;//
+sys.dbms_utility.get_time()
+1216359724
+#
+# Test GET_TIME with an argument
+#
+SELECT sys.dbms_utility.get_time(1);
+ERROR 42000: Incorrect number of arguments for FUNCTION sys.dbms_utility.get_time; expected 0, got 1
+CREATE OR REPLACE PROCEDURE proc1
+IS
+BEGIN
+RAISE NO_DATA_FOUND;
+END;
+//
+CREATE OR REPLACE PROCEDURE proc1_1 
+IS 
+BEGIN 
+proc1;
+EXCEPTION 
+WHEN OTHERS 
+THEN 
+RAISE DUP_VAL_ON_INDEX; 
+END;//
+CREATE OR REPLACE PACKAGE pkg1 
+IS 
+PROCEDURE proc2; 
+END pkg1;//
+CREATE OR REPLACE PACKAGE BODY pkg1 
+IS 
+PROCEDURE proc2 
+IS 
+BEGIN 
+proc1_1; 
+EXCEPTION 
+WHEN OTHERS 
+THEN 
+RAISE DUP_VAL_ON_INDEX; 
+END; 
+END pkg1;//
+CREATE PROCEDURE proc3( ) 
+AS
+BEGIN 
+pkg1.proc2; 
+EXCEPTION 
+WHEN DUP_VAL_ON_INDEX THEN
+SET @x2 = 2;
+END;//
+#
+# Test FORMAT_BACKTRACE & FORMAT_ERROR_STACK
+#
+CALL proc3( );
+SELECT sys.DBMS_UTILITY.FORMAT_ERROR_BACKTRACE();
+sys.DBMS_UTILITY.FORMAT_ERROR_BACKTRACE()
+4094: at "root.test.pkg1.proc2" at line 9
+4094: at "root.test.proc1_1" at line 8
+4094: at "root.test.pkg1.proc2" at line 5
+4094: at "root.test.proc3" at line 4
+
+SELECT sys.DBMS_UTILITY.FORMAT_ERROR_STACK();
+sys.DBMS_UTILITY.FORMAT_ERROR_STACK()
+1062: Duplicate entry '%-.192sT' for key %d
+4094: at "root.test.pkg1.proc2" at line 9
+1062: Duplicate entry '%-.192sT' for key %d
+4094: at "root.test.proc1_1" at line 8
+4094: at "root.test.pkg1.proc2" at line 5
+4094: at "root.test.proc3" at line 4
+
+#
+# Test FORMAT_BACKTRACE & FORMAT_ERROR_STACK in an exception handler
+#
+CREATE PROCEDURE proc4( ) 
+AS
+BEGIN 
+pkg1.proc2; 
+EXCEPTION 
+WHEN DUP_VAL_ON_INDEX THEN
+SELECT sys.DBMS_UTILITY.FORMAT_ERROR_BACKTRACE();
+SELECT sys.DBMS_UTILITY.FORMAT_ERROR_STACK();
+END;//
+CALL proc4( );
+sys.DBMS_UTILITY.FORMAT_ERROR_BACKTRACE()
+4094: at "root.test.pkg1.proc2" at line 9
+4094: at "root.test.proc1_1" at line 8
+4094: at "root.test.pkg1.proc2" at line 5
+4094: at "root.test.proc4" at line 4
+
+sys.DBMS_UTILITY.FORMAT_ERROR_STACK()
+1062: Duplicate entry '%-.192sT' for key %d
+4094: at "root.test.pkg1.proc2" at line 9
+1062: Duplicate entry '%-.192sT' for key %d
+4094: at "root.test.proc1_1" at line 8
+4094: at "root.test.pkg1.proc2" at line 5
+4094: at "root.test.proc4" at line 4
+
+DROP PROCEDURE proc4;
+SET @identifier := REPEAT('x', 500);
+#
+# Test FORMAT_ERROR_STACK with very long result string
+#
+CREATE OR REPLACE PROCEDURE cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc IS BEGIN proc1; EXCEPTION WHEN OTHERS THEN signal SQLSTATE 'HY000' set mysql_errno=3047, message_text=@identifier; END;//
+CREATE OR REPLACE PROCEDURE bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb IS BEGIN cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc; EXCEPTION WHEN OTHERS THEN signal SQLSTATE 'HY000' set mysql_errno=3047, message_text=@identifier; END;//
+CREATE OR REPLACE PROCEDURE aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa IS BEGIN bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb; EXCEPTION WHEN OTHERS THEN signal SQLSTATE 'HY000' set mysql_errno=3047, message_text=@identifier; END;//
+CREATE OR REPLACE PROCEDURE proc1_1 
+IS 
+BEGIN 
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa; 
+EXCEPTION 
+WHEN OTHERS 
+THEN 
+signal SQLSTATE 'HY000' set mysql_errno=3047, message_text=@identifier;
+END;//
+CALL proc3( );
+SELECT sys.DBMS_UTILITY.FORMAT_ERROR_STACK();
+sys.DBMS_UTILITY.FORMAT_ERROR_STACK()
+1062: Duplicate entry '%-.192sT' for key %d
+4094: at "root.test.pkg1.proc2" at line 9
+3047: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+4094: at "root.test.proc1_1" at line 8
+3047: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+4094: at "root.test.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" at line 2
+3047: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+4094: at "root.test.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" at line 2
+3047: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+4094: at "root.test.cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc" at line 2
+4094: at "root.test.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" at line 2
+4094: at "root.test.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" at line 2
+4094: at "root.test.proc1_1" at line 4
+4094: at "root.test.pkg1.proc2" at line 5
+4094: at "root.test.proc3" at line 4
+
+DROP PROCEDURE proc1;
+DROP PROCEDURE cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc;
+DROP PROCEDURE bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb;
+DROP PROCEDURE aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;
+DROP PROCEDURE proc1_1;
+DROP PACKAGE pkg1;
+DROP PROCEDURE proc3;
+#
+# Test FORMAT_BACKTRACE & FORMAT_ERROR_STACK when no error occurs
+#
+CREATE PROCEDURE p1() AS
+BEGIN
+CALL sys.DBMS_TRANSACTION.COMMIT;
+END;
+$$
+CALL p1();
+SELECT sys.DBMS_UTILITY.FORMAT_ERROR_BACKTRACE();
+sys.DBMS_UTILITY.FORMAT_ERROR_BACKTRACE()
+
+SELECT sys.DBMS_UTILITY.FORMAT_ERROR_STACK();
+sys.DBMS_UTILITY.FORMAT_ERROR_STACK()
+
+DROP PROCEDURE p1;
