@@ -1001,6 +1001,8 @@ protected:
   bool
   execute(THD *thd, bool merge_da_on_success);
 
+  void generate_non_erroring_bt_part(THD *thd, sp_instr *i);
+
   /**
     Perform a forward flow analysis in the generated code.
     Mark reachable instructions, for the optimizer.

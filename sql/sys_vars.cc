@@ -7205,6 +7205,20 @@ static Sys_var_charptr Sys_redirect_url(
        SESSION_VAR(redirect_url), CMD_LINE(REQUIRED_ARG), DEFAULT(""),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(sysvar_validate_redirect_url));
 
+static Sys_var_charptr Sys_errstack_str(
+       "errstack_str",
+       "Current error stack when error(s) occur. "
+       "Empty string means no error occured",
+       SESSION_VAR(errstack_str), CMD_LINE(REQUIRED_ARG), DEFAULT(""),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0));
+
+static Sys_var_charptr Sys_backtrace_str(
+       "backtrace_str",
+       "Backtrace string when error(s) occur. "
+       "Empty string means no error occured",
+       SESSION_VAR(backtrace_str), CMD_LINE(REQUIRED_ARG), DEFAULT(""),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0));
+
 static Sys_var_sesvartrack Sys_track_session_sys_vars(
        "session_track_system_variables",
        "Track changes in registered system variables",
