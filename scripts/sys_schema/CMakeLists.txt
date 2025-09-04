@@ -163,6 +163,7 @@ ${CMAKE_CURRENT_SOURCE_DIR}/packages/dbms_utility.sql
 ${CMAKE_CURRENT_SOURCE_DIR}/packages/dbms_sql.sql
 ${CMAKE_CURRENT_SOURCE_DIR}/packages/utl_encode.sql
 ${CMAKE_CURRENT_SOURCE_DIR}/packages/utl_raw.sql
+${CMAKE_CURRENT_SOURCE_DIR}/packages/utl_i18n.sql
 ${CMAKE_CURRENT_SOURCE_DIR}/after_setup.sql
 )
 ELSE()
@@ -178,6 +179,7 @@ SET(files
   ${CMAKE_CURRENT_SOURCE_DIR}/packages/dbms_sql.sql
   ${CMAKE_CURRENT_SOURCE_DIR}/packages/utl_encode.sql
   ${CMAKE_CURRENT_SOURCE_DIR}/packages/utl_raw.sql
+  ${CMAKE_CURRENT_SOURCE_DIR}/packages/utl_i18n.sql
   ${CMAKE_CURRENT_SOURCE_DIR}/after_setup.sql)
 ENDIF()
 

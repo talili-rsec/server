@@ -740,6 +740,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, size_t *yystacksize);
 %token  <kwd>  RECORD_SYM
 %token  <kwd>  ROWTYPE_MARIADB_SYM           // PLSQL-R
 %token  <kwd>  ROWNUM_SYM                    /* Oracle-R */
+%token  <kwd>  ANY_CS_SYM
 
 /*
   SQL functions with a special syntax
@@ -1440,6 +1441,10 @@ bool my_yyoverflow(short **a, YYSTYPE **b, size_t *yystacksize);
         field_type_temporal
         field_type_misc
         json_table_field_type
+
+%ifdef ORACLE
+%type <Lex_field_type> field_type_any_cs
+%endif
 
 %type <Lex_exact_charset_extended_collation_attrs>
         binary
@@ -19331,6 +19336,11 @@ sf_return_type:
             if (unlikely(Lex->sf_return_fill_definition($1)))
               MYSQL_YYABORT;
           }
+        | field_type_any_cs
+          {
+            if (unlikely(Lex->sf_return_fill_definition($1)))
+              MYSQL_YYABORT;
+          }
         | ROW_SYM row_type_body
           {
             if (Lex->sf_return_fill_definition_row($2))
@@ -19887,6 +19897,15 @@ package_specification_element:
 
 %ifdef ORACLE
 
+field_type_any_cs:
+          VARCHAR2_ORACLE_SYM opt_field_length charset ANY_CS_SYM opt_compressed
+          {
+            $$.set(&type_handler_varchar, $2,
+                Lex_exact_charset_extended_collation_attrs::any_cs());
+            Lex->map_data_type(Lex_ident_sys(), &$$);
+          }
+        ;
+
 sp_decl_variable_list_anchored:
           sp_decl_idents_init_vars
           optionally_qualified_column_ident PERCENT_ORACLE_SYM TYPE_SYM
@@ -19918,6 +19937,11 @@ sp_param_name_and_mode:
 
 sp_param_init_vars:
           sp_param_name_and_mode_init_vars field_type
+          {
+            if (unlikely(Lex->sp_param_fill_definition($$= $1, $2)))
+              MYSQL_YYABORT;
+          }
+        | sp_param_name_and_mode_init_vars field_type_any_cs
           {
             if (unlikely(Lex->sp_param_fill_definition($$= $1, $2)))
               MYSQL_YYABORT;

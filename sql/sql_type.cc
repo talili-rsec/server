@@ -28,6 +28,9 @@
 #include <mysql/plugin_data_type.h>
 
 
+Column_definition *Type_handler::m_column_definition;
+
+
 const DTCollation &DTCollation_numeric::singleton()
 {
   static const DTCollation_numeric tmp;
@@ -2786,6 +2789,10 @@ Type_handler::Column_definition_set_attributes(THD *thd,
   def->set_charset_collation_attrs(thd,
                                    thd->variables.character_set_collations,
                                    attr.charset_collation_attrs());
+  if (def->flags & ANYCS_COLLATION_FLAG)
+  {
+    m_column_definition = def;
+  }
   def->set_length_and_dec(attr);
   return false;
 }
@@ -8701,7 +8708,7 @@ Field *Type_handler_varchar::
     Field_varstring(rec.ptr(), (uint32) attr->length,
                     HA_VARCHAR_PACKLENGTH((uint32) attr->length),
                     rec.null_ptr(), rec.null_bit(),
-                    attr->unireg_check, name, share, attr->charset);
+                    attr->unireg_check, name, share, attr->charset, flags);
 }
 
 
