@@ -184,6 +184,9 @@ public:
                                      Item **value);
   int set_variable_row(THD *thd, uint var_idx, List<Item> &items);
 
+  void fix_anycs_collation(
+      uint var_idx, Item **value);
+
   int set_parameter(THD *thd, uint var_idx, Item **value)
   {
     DBUG_ASSERT(var_idx < argument_count());
