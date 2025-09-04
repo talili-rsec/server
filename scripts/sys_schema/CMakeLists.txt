@@ -160,6 +160,7 @@ ${CMAKE_CURRENT_SOURCE_DIR}/procedures/table_exists.sql
 ${CMAKE_CURRENT_SOURCE_DIR}/packages/dbms_transaction.sql
 ${CMAKE_CURRENT_SOURCE_DIR}/packages/dbms_random.sql
 ${CMAKE_CURRENT_SOURCE_DIR}/packages/dbms_utility.sql
+${CMAKE_CURRENT_SOURCE_DIR}/packages/dbms_sql.sql
 ${CMAKE_CURRENT_SOURCE_DIR}/packages/utl_encode.sql
 ${CMAKE_CURRENT_SOURCE_DIR}/packages/utl_raw.sql
 ${CMAKE_CURRENT_SOURCE_DIR}/after_setup.sql
@@ -174,6 +175,7 @@ SET(files
   ${CMAKE_CURRENT_SOURCE_DIR}/packages/dbms_transaction.sql
   ${CMAKE_CURRENT_SOURCE_DIR}/packages/dbms_random.sql
   ${CMAKE_CURRENT_SOURCE_DIR}/packages/dbms_utility.sql
+  ${CMAKE_CURRENT_SOURCE_DIR}/packages/dbms_sql.sql
   ${CMAKE_CURRENT_SOURCE_DIR}/packages/utl_encode.sql
   ${CMAKE_CURRENT_SOURCE_DIR}/packages/utl_raw.sql
   ${CMAKE_CURRENT_SOURCE_DIR}/after_setup.sql)

@@ -1073,6 +1073,65 @@ sp_instr_stmt::exec_core(THD *thd, uint *nextp)
 }
 
 
+int sp_instr_stmt_dbmssql_execute::execute(THD *thd, uint *nextp)
+{
+  auto lex= m_lex;
+  Item *it= (Item *) lex->value_list.first_node()->info;
+  int res;
+
+  it= thd->sp_prepare_func_item(&it, 1);
+  if (! it || it->check_type_can_return_str({
+      STRING_WITH_LEN("dbmssql_execute")}))
+  {
+    res= -1;
+  }
+  else
+  {
+    StringBuffer<STRING_BUFFER_USUAL_SIZE>
+      buffer(thd->variables.character_set_client);
+    String *str= it->val_str(&buffer);
+    if (!str)
+    {
+      my_error(ER_INVALID_USE_OF_NULL, MYF(0));
+      return true;
+    }
+    int cursor_id= atoi(str->ptr() + 1);
+    int cursor_idx= thd->cursor_idx(cursor_id);
+    char *cursor_stmt_ptr= const_cast<char *>(thd->cursor_list[
+        cursor_idx].cursor_statement.ptr());
+    for ( ; *cursor_stmt_ptr; ++cursor_stmt_ptr) *cursor_stmt_ptr =
+        tolower(*cursor_stmt_ptr);
+    /*
+      "thd->cursor_list[cursor_idx].cursor_statement" is guaranteed to just
+      contain exactly the 4 DDL statement command strings.
+    */
+    if (thd->cursor_list[cursor_idx].cursor_statement.strstr("create", 5) > -1
+        || thd->cursor_list[cursor_idx].cursor_statement.strstr("alter", 5) >
+        -1
+        || thd->cursor_list[cursor_idx].cursor_statement.strstr("drop", 4) > -1
+        || thd->cursor_list[cursor_idx].cursor_statement.strstr("rename", 6) >
+        -1)
+    {
+      return true;
+    }
+    lex->prepared_stmt.set(Lex_ident_sys(
+        str->ptr(), str->length()),
+        NULL, NULL);
+    if (str != &buffer)
+      buffer.copy(*str);
+
+    LEX *old_lex= thd->lex;
+    thd->lex= lex;
+
+    res= sp_instr_stmt::execute(thd, nextp);
+
+    thd->lex= old_lex;
+  }
+
+  return res;
+}
+
+
 /*
   sp_instr_set class functions
 */
