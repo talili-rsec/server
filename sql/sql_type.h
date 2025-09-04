@@ -3822,6 +3822,7 @@ extern MYSQL_PLUGIN_IMPORT Vers_type_trx vers_type_trx;
 class Type_handler
 {
   Name m_name;
+  static Column_definition *m_column_definition;
 protected:
   String *print_item_value_csstr(THD *thd, Item *item, String *str) const;
   String *print_item_value_temporal(THD *thd, Item *item, String *str,
@@ -4650,6 +4651,10 @@ public:
   Item_func_mod_fix_length_and_dec(Item_func_mod *func) const= 0;
 
   virtual const Vers_type_handler *vers() const { return NULL; }
+  Column_definition *column_definition() const
+  {
+    return m_column_definition;
+  };
 };
 
 

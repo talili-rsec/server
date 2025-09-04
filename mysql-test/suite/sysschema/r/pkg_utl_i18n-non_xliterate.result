@@ -1,0 +1,24 @@
+SET sql_mode= oracle;
+SET NAMES 'utf8mb3';
+#
+# Test raw_to_char with utf8 charset source
+#
+select sys.utl_i18n.raw_to_char(x'e38182', 'utf8');
+sys.utl_i18n.raw_to_char(x'e38182', 'utf8')
+あ
+Warnings:
+Note	1585	This function 'transliterate' has the same name as a native function
+Note	1585	This function 'transliterate' has the same name as a native function
+SET NAMES 'utf8mb4';
+#
+# Test raw_to_char with utf8mb3 charset source
+#
+select sys.utl_i18n.raw_to_char(x'e38182', 'utf8mb3');
+sys.utl_i18n.raw_to_char(x'e38182', 'utf8mb3')
+あ
+#
+# Test STRING_TO_RAW
+#
+select hex(sys.UTL_i18n.STRING_TO_RAW('あ', 'ucs2'));
+hex(sys.UTL_i18n.STRING_TO_RAW('あ', 'ucs2'))
+3042

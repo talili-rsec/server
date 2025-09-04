@@ -463,7 +463,8 @@ public:
     TYPE_CHARACTER_SET= 1,
     TYPE_COLLATE_EXACT= 2,
     TYPE_CHARACTER_SET_COLLATE_EXACT= 3,
-    TYPE_COLLATE_CONTEXTUALLY_TYPED= 4
+    TYPE_COLLATE_CONTEXTUALLY_TYPED= 4,
+    TYPE_CHARACTER_SET_ANY_CS= 5
   };
 
 // Number of bits required to store enum Type values
@@ -573,6 +574,7 @@ public:
     switch (m_type)
     {
     case TYPE_CHARACTER_SET:
+    case TYPE_CHARACTER_SET_ANY_CS:
       return map.get_collation_for_charset(used, m_ci);
     case TYPE_EMPTY:
     case TYPE_CHARACTER_SET_COLLATE_EXACT:
@@ -585,6 +587,10 @@ public:
   Type type() const
   {
     return m_type;
+  }
+  void set_type(Type type)
+  {
+    m_type= type;
   }
   bool is_contextually_typed_collation() const
   {
@@ -614,6 +620,7 @@ public:
       return merge_context_collation(used, map, Lex_context_collation(cl.m_ci));
     case TYPE_CHARACTER_SET:
     case TYPE_CHARACTER_SET_COLLATE_EXACT:
+    case TYPE_CHARACTER_SET_ANY_CS:
       break;
     }
     DBUG_ASSERT(0);
@@ -640,6 +647,7 @@ public:
       return merge_context_collation(used, map, Lex_context_collation(cl.m_ci));
     case TYPE_CHARACTER_SET:
     case TYPE_CHARACTER_SET_COLLATE_EXACT:
+    case TYPE_CHARACTER_SET_ANY_CS:
       break;
     }
     DBUG_ASSERT(0);
@@ -819,6 +827,7 @@ public:
       Lex_exact_charset_extended_collation_attrs(&my_charset_utf8mb3_general_ci,
                                                  TYPE_CHARACTER_SET);
   }
+  static Lex_exact_charset_extended_collation_attrs any_cs(bool bin_mod= 1);
 };
 
 

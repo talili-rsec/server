@@ -1,0 +1,207 @@
+-- source include/not_embedded.inc
+-- source include/have_perfschema.inc
+
+--echo #
+--echo # MDEV-34331: System package SYS.UTL_I18N
+--echo #
+
+--echo #
+--echo # transliterate Tests with ujis
+--echo #
+
+SET sql_mode= oracle;
+SET NAMES ujis;
+
+--echo #
+--echo # Test transliterate with valid input
+--echo #
+SET NAMES ujis;
+SET collation_connection=ujis_japanese_ci;
+CREATE TABLE t1 (b VARCHAR(2));
+INSERT INTO t1 VALUES ('0'),('1'),('2'),('3'),('4'),('5'),('6'),('7');
+INSERT INTO t1 VALUES ('8'),('9'),('A'),('B'),('C'),('D'),('E'),('F');
+#
+# Populate tables head and tail with values '00'-'FF'
+#
+CREATE TEMPORARY TABLE head AS SELECT concat(b1.b, b2.b) AS head FROM t1 b1, t1 b2;
+CREATE TEMPORARY TABLE tail AS SELECT concat(b1.b, b2.b) AS tail FROM t1 b1, t1 b2;
+DROP TABLE t1;
+#
+# Populate table t1 with all ujis codes.
+# 
+#
+CREATE TABLE t1 AS SELECT 'XXXXXX' AS code, ' ' AS a LIMIT 0;
+#
+# Pupulate JIS-X-0201 range (Half Width Kana)
+# Valid characters: [8E][A1-DF]
+#
+INSERT IGNORE INTO t1 (code) SELECT concat('8E', head) FROM head
+WHERE (head BETWEEN 'A1' AND 'DF') ORDER BY head;
+#
+# Populate JIS-X-0208 range
+# Expected valid range: [A1..FE][A1..FE]
+#
+INSERT IGNORE INTO t1 (code) SELECT concat(head, tail)
+FROM head, tail
+WHERE (head BETWEEN '80' AND 'FF') AND (head NOT BETWEEN '8E' AND '8F')
+AND   (tail BETWEEN '20' AND 'FF')
+ORDER BY head, tail;
+#
+# Populate JIS-X-0212 range
+# Expected valid range: [8F][A1..FE][A1..FE]
+#
+INSERT IGNORE INTO t1 (code) SELECT concat('8F', head, tail)
+FROM head, tail
+WHERE (head BETWEEN '80' AND 'FF') AND (tail BETWEEN '80' AND 'FF')
+ORDER BY head, tail;
+DROP TEMPORARY TABLE head, tail;
+SHOW CREATE TABLE t1;
+
+UPDATE IGNORE t1 SET a=unhex(code) ORDER BY code;
+select GROUP_CONCAT(a) from t1 WHERE (code BETWEEN '8eA1' AND '8eDF') into @hw_char_arr;
+select @hw_char_arr;
+select GROUP_CONCAT(a) from t1 WHERE (code BETWEEN 'a5a1' AND 'a5f6') into @fw_char_arr;
+select GROUP_CONCAT(a) from t1 WHERE (code BETWEEN 'a4a1' AND 'a4f3') into @hi_char_arr;
+select @fw_char_arr;
+
+DROP TABLE t1;
+
+SET NAMES ujis;
+SET collation_connection=ujis_japanese_ci;
+DELIMITER /;
+CREATE PROCEDURE f1 (array_string VARCHAR2(255) character set ujis)
+AS
+BEGIN
+  DECLARE
+    array_length INT;
+    element VARCHAR2(255) character set ujis;
+    temp_string VARCHAR2(255) character set ujis;
+  BEGIN
+    set array_length = (LENGTH(array_string) - LENGTH(REPLACE(array_string, ',', ''))) + 1;
+    SET temp_string = array_string;
+    <<la>>
+    FOR ia IN 1 .. array_length
+    LOOP
+      SET element = SUBSTRING_INDEX(SUBSTRING_INDEX(temp_string, ',', 1), ',', -1);
+      select element;
+      select sys.utl_i18n.transliterate(element, 'hwkatakana_fwkatakana');
+      SET temp_string = SUBSTRING(temp_string, LENGTH(element) + 2); 
+    END LOOP la;
+  END;
+END;
+/
+DELIMITER ;/
+
+--echo #
+--echo # Test transliterate function with all EUC-JP halfwidth katakana characters
+--echo #
+CALL f1(@hw_char_arr);
+DROP PROCEDURE f1;
+
+DELIMITER /;
+CREATE PROCEDURE f2 (array_string VARCHAR2(255) character set ujis)
+AS
+BEGIN
+  DECLARE
+    array_length INT;
+    element VARCHAR2(255) character set ujis;
+    temp_string VARCHAR2(255) character set ujis;
+  BEGIN
+    set array_length = (LENGTH(array_string) - LENGTH(REPLACE(array_string, ',', ''))) + 1;
+    SET temp_string = array_string;
+    <<la>>
+    FOR ia IN 1 .. array_length
+    LOOP
+      SET element = SUBSTRING_INDEX(SUBSTRING_INDEX(temp_string, ',', 1), ',', -1);
+      select element;
+      select sys.utl_i18n.transliterate(element, 'kana_hwkatakana');
+      SET temp_string = SUBSTRING(temp_string, LENGTH(element) + 2); 
+    END LOOP la;
+  END;
+END;
+/
+DELIMITER ;/
+
+--echo #
+--echo # Test transliterate function with all EUC-JP fullwidth katakana characters
+--echo #
+CALL f2(@fw_char_arr);
+
+--echo #
+--echo # Test transliterate function with all EUC-JP hiragana characters
+--echo #
+CALL f2(@hi_char_arr);
+DROP PROCEDURE f2;
+
+--echo #
+--echo # Test combination of fullwidth, hiragana & halfwidth characters with the 'fwkatakana_hwkatakana' (mode) name
+--echo #
+select sys.utl_i18n.transliterate('アあｱ', 'fwkatakana_hwkatakana');
+
+--echo #
+--echo # Test Latin 'a' character with the 'kana_hwkatakana' (mode) name
+--echo #
+select sys.utl_i18n.transliterate('a', 'kana_hwkatakana');
+
+--echo #
+--echo # Test Latin 'a' character with the 'hwkatakana_fwkatakana' (mode) name
+--echo #
+select sys.utl_i18n.transliterate('a', 'hwkatakana_fwkatakana');
+
+--echo #
+--echo # Test the 'kana_hwkatakana' (mode) name
+--echo #
+select sys.utl_i18n.transliterate('あ', 'kana_hwkatakana');
+
+--echo #
+--echo # Test the 'hwkatakana_fwkatakana' (mode) name
+--echo #
+select sys.utl_i18n.transliterate('ｱ', 'hwkatakana_fwkatakana');
+
+--echo #
+--echo # Test the 'hwkatakana_fwkatakana' (mode) name
+--echo #
+select sys.utl_i18n.transliterate('ア1', 'hwkatakana_fwkatakana');
+
+--echo #
+--echo # Test input string with introducer
+--echo #
+select sys.utl_i18n.transliterate(_ujis'あ', 'kana_hwkatakana');
+
+--echo #
+--echo # Test input string with collate clause
+--echo #
+select sys.utl_i18n.transliterate('あ' collate ujis_japanese_ci, 'kana_hwkatakana');
+
+--echo #
+--echo # Test input string with introducer & collate clause
+--echo #
+select sys.utl_i18n.transliterate(_ujis'あ' collate ujis_japanese_ci, 'kana_hwkatakana');
+
+--echo #
+--echo # Test with blank (mode) name
+--echo #
+--error ER_STD_INVALID_ARGUMENT
+select sys.utl_i18n.transliterate('ｱ', ' ');
+
+--echo #
+--echo # Test with empty input string
+--echo #
+select sys.utl_i18n.transliterate('', 'hwkatakana_fwkatakana');
+
+--echo #
+--echo # Test TRANSLITERATE with empty name
+--echo #
+--error ER_STD_INVALID_ARGUMENT
+select sys.utl_i18n.transliterate('ｱ', '');
+
+--echo #
+--echo # Test TRANSLITERATE with null name
+--echo #
+select sys.utl_i18n.transliterate(NULL, 'hwkatakana_fwkatakana');
+
+--echo #
+--echo # Test TRANSLITERATE with non sjis & EUC-JP characters
+--echo #
+--error ER_STD_INVALID_ARGUMENT
+select sys.utl_i18n.transliterate(_utf8'ｱ', 'hwkatakana_fwkatakana');
