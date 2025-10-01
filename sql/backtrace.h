@@ -40,7 +40,8 @@ public:
     instr_component_list(PSI_INSTRUMENT_MEM),
     errframes_strs(PSI_INSTRUMENT_MEM),
     normalframes_strs(PSI_INSTRUMENT_MEM),
-    first_2_frames(PSI_INSTRUMENT_MEM)
+    first_2_frames(PSI_INSTRUMENT_MEM),
+    post_err_stack_top_visit_ctr(0)
   { }
 
   Dynamic_array<Error_info_type> error_stack;
@@ -53,6 +54,7 @@ public:
   Dynamic_array<String> first_2_frames;
   String backtrace_std_str;
   String errstack_str;
+  int post_err_stack_top_visit_ctr;
 };
 
 #endif // BACKTRACE_INCLUDED

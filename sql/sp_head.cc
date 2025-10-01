@@ -1400,7 +1400,99 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
         ctx->handle_sql_condition(thd, &ip, i))
     {
       err_status= FALSE;
+      if (!i->m_ctx->parent_context()->parent_context())
+      {
+        //construct backtrace_str starting with reversed errframes_strs
+        int err_frames_strs_size=
+            static_cast<int>(thd->error_stack.size()); 
+        for (int loop_ctr= err_frames_strs_size - 1; loop_ctr >= 0;
+              loop_ctr--)
+        {
+          //construct string with err msg
+          char err[10]= "";
+
+          sprintf(err, "%i", thd->error_stack[loop_ctr].err_no);
+          thd->errstack_str.append(err, strlen(err));
+          thd->errstack_str.append( ": ", 2);
+          thd->errstack_str.append(thd->error_stack[
+              loop_ctr].msg, strlen(thd->error_stack[
+              loop_ctr].msg));
+          thd->errstack_str.append('\n');
+
+          //construct string with no err msg
+          char line_no_str[20]= "";
+
+          sprintf(err, "%i", ER_SP_STACK_TRACE);
+          sprintf(line_no_str, "%i", thd->erroring_bt_list[
+              loop_ctr].line_no);
+
+          thd->backtrace_std_str.append(err, strlen(err));
+          thd->errstack_str.append(err, strlen(err));
+          thd->backtrace_std_str.append( ": at \"", 6);
+          thd->errstack_str.append( ": at \"", 6);
+          thd->backtrace_std_str.append(thd->main_security_ctx.user,
+              strlen(thd->main_security_ctx.user));
+          thd->errstack_str.append(thd->main_security_ctx.user, strlen(
+              thd->main_security_ctx.user));
+          thd->backtrace_std_str.append(".", 1);
+          thd->errstack_str.append(".", 1);
+          thd->backtrace_std_str.append(
+              thd->erroring_bt_list[loop_ctr].qname, 
+              strlen( thd->erroring_bt_list[loop_ctr].qname));
+          thd->errstack_str.append(
+              thd->erroring_bt_list[loop_ctr].qname, 
+              strlen( thd->erroring_bt_list[loop_ctr].qname));
+          thd->backtrace_std_str.append("\" at line ", 10);
+          thd->errstack_str.append("\" at line ", 10);
+          thd->backtrace_std_str.append(line_no_str,
+              strlen(line_no_str));
+          thd->errstack_str.append(line_no_str, strlen(line_no_str));
+          thd->backtrace_std_str.append('\n');
+          thd->errstack_str.append('\n');
+
+        }
+        //append the non-erroring frames also in reversed order
+        int normalframes_strs_size=
+            static_cast<int>(thd->bt_list.size()); 
+        for (int loop_ctr= normalframes_strs_size - 2; loop_ctr >= 0;
+            loop_ctr--)
+        {
+          char err[10]= "";
+          char line_no_str[20]= "";
+          sprintf(err, "%i", ER_SP_STACK_TRACE);
+          sprintf(line_no_str, "%i", thd->bt_list[loop_ctr].line_no);
+          thd->backtrace_std_str.append(err, strlen(err));
+          thd->errstack_str.append(err, strlen(err));
+          thd->backtrace_std_str.append( ": at \"", 6);
+          thd->errstack_str.append( ": at \"", 6);
+          thd->backtrace_std_str.append(thd->main_security_ctx.user,
+              strlen(thd->main_security_ctx.user));
+          thd->errstack_str.append(thd->main_security_ctx.user,
+              strlen(thd->main_security_ctx.user));
+          thd->backtrace_std_str.append(".", 1);
+          thd->errstack_str.append(".", 1);
+          thd->backtrace_std_str.append(thd->bt_list[loop_ctr].qname,
+              strlen( thd->bt_list[loop_ctr].qname));
+          thd->errstack_str.append(thd->bt_list[loop_ctr].qname,
+              strlen( thd->bt_list[loop_ctr].qname));
+          thd->backtrace_std_str.append("\" at line ", 10);
+          thd->errstack_str.append("\" at line ", 10);
+          thd->backtrace_std_str.append(line_no_str,
+              strlen(line_no_str));
+          thd->errstack_str.append(line_no_str, strlen(line_no_str));
+          thd->backtrace_std_str.append('\n');
+          thd->errstack_str.append('\n');
+        }
+        thd->variables.backtrace_str= thd->backtrace_std_str.c_ptr();
+        thd->variables.errstack_str= thd->errstack_str.c_ptr();
+        thd->instr_component_list.clear();
+      }
+      
     }
+    /*else
+    {
+      thd->variables.backtrace_str= 0;
+    }*/
 
     /* Reset sp_rcontext::end_partial_result_set flag. */
     ctx->end_partial_result_set= FALSE;
@@ -1466,7 +1558,7 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
         propagated to the caller in any case.
   */
   da->pop_warning_info();
-
+  
   if (err_status || merge_da_on_success)
   {
     /*
@@ -1515,7 +1607,7 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
         
         Error_info_type msg_and_errno;
         msg_and_errno.err_no= da->get_sql_errno();
-        msg_and_errno.msg= strdup(da->message());
+        msg_and_errno.msg= const_cast<char*>(da->message());
         thd->error_stack.push(msg_and_errno); 
 
         //check if we've returned back to the 2nd or starting sp
@@ -1625,6 +1717,7 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
               }
               thd->variables.backtrace_str= thd->backtrace_std_str.c_ptr();
               thd->variables.errstack_str= thd->errstack_str.c_ptr();
+              thd->instr_component_list.clear();
             }
           }
         }
@@ -1711,11 +1804,47 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
 
 void sp_head::generate_non_erroring_bt_part(THD *thd, sp_instr *i)
 {
-  //Non-erroring part of the backtraces
-
   Backtrace_info_type instr_and_lineno;
   instr_and_lineno.line_no= i->m_lineno;
   instr_and_lineno.qname= const_cast<char*>(m_qname.str);
+
+  if (thd->error_stack.size())
+  {
+    if (thd->first_2_frames.size() == 2)
+    {
+      DBUG_ASSERT(thd->first_2_frames.back()->ptr());
+      DBUG_ASSERT(thd->first_2_frames.front()->ptr());
+      if ((instr_and_lineno.qname &&
+          !strcmp(instr_and_lineno.qname, thd->first_2_frames.back()->ptr())) ||
+          (instr_and_lineno.qname &&
+          !strcmp(instr_and_lineno.qname, thd->first_2_frames.front()->ptr())))
+      {
+        thd->post_err_stack_top_visit_ctr++;
+        return;
+      }
+    }
+    else if (thd->first_2_frames.size() == 1) 
+    {
+      DBUG_ASSERT(thd->first_2_frames.back()->ptr());
+      if (instr_and_lineno.qname && 
+        !strcmp(instr_and_lineno.qname, thd->first_2_frames.back()->ptr()))
+      {
+        thd->post_err_stack_top_visit_ctr++;
+        return;
+      }
+    }
+    else if (m_qname.str && !strcmp(m_qname.str, "sys.dbms_utility") &&
+      !thd->instr_component_list.size())
+    {
+      //request for the backtrace & "error stack" was done outside a routine
+      /*thd->variables.backtrace_str= (char*)"";
+      thd->variables.errstack_str= (char*)"";*/
+      return;
+      
+    }
+  }
+  
+  //Non-erroring part of the backtraces
 
   thd->instr_component_list.push(instr_and_lineno);
   /*
@@ -1803,6 +1932,7 @@ void sp_head::generate_non_erroring_bt_part(THD *thd, sp_instr *i)
         {
           thd->normalframes_strs[loop_ctr].set_alloced(NULL, 0, 0);
         }
+        thd->instr_component_list.clear();
       }
     }
     else if (thd->first_2_frames.size() == 1) 
@@ -1818,6 +1948,7 @@ void sp_head::generate_non_erroring_bt_part(THD *thd, sp_instr *i)
         {
           thd->normalframes_strs[loop_ctr].set_alloced(NULL, 0, 0);
         }
+        thd->instr_component_list.clear();
       }
     }
   }

@@ -632,6 +632,30 @@ public:
   }
 };
 
+class Sys_var_dbms_utility_charptr: public Sys_var_charptr
+{
+public:
+  Sys_var_dbms_utility_charptr(const char *name_arg,
+      const char *comment, int flag_args, ptrdiff_t off, size_t size,
+      CMD_LINE getopt,
+      const char *def_val, PolyLock *lock=0,
+      enum binlog_status_enum binlog_status_arg=VARIABLE_NOT_IN_BINLOG,
+      on_check_function on_check_func=0,
+      on_update_function on_update_func=0,
+      const char *substitute=0): 
+      Sys_var_charptr(name_arg, comment, flag_args, off, size, getopt, def_val,
+          lock, binlog_status_arg, on_check_func, on_update_func, substitute)
+  {
+    
+  }
+protected:
+  const uchar *session_value_ptr(THD *thd, const LEX_CSTRING *base) const override
+  {
+    return thd->variables.backtrace_str ?
+      (uchar *) &(thd->variables.backtrace_str[0]) : NULL;
+  }
+};
+
 class Sys_var_charptr_fscs: public Sys_var_charptr
 {
   using Sys_var_charptr::Sys_var_charptr;
@@ -732,11 +756,57 @@ public:
   { DBUG_ASSERT(FALSE); }
   void global_save_default(THD *thd, set_var *var) override
   { DBUG_ASSERT(FALSE); }
+  /*String *sys_var::val_str(String *str, THD *thd, enum_var_type type, 
+      const LEX_CSTRING *base) override
+  {
+    AutoWLock lock(&PLock_global_system_variables);
+    const uchar *value= thd->security_ctx->proxy_user[0] ?
+        (uchar *) &(thd->security_ctx->proxy_user[0]) : NULL;
+    return val_str_nolock(str, thd, value);
+  }*/
 protected:
   const uchar *session_value_ptr(THD *thd, const LEX_CSTRING *base) const override
   {
     return thd->security_ctx->proxy_user[0] ?
       (uchar *) &(thd->security_ctx->proxy_user[0]) : NULL;
+  }
+};
+
+class Sys_var_dbms_utility_string: public sys_var
+{
+public:
+  Sys_var_dbms_utility_string(const char *name_arg, const char *comment)
+    : sys_var(&all_sys_vars, name_arg, comment,
+              sys_var::READONLY+sys_var::ONLY_SESSION, 0, NO_GETOPT,
+              NO_ARG, SHOW_CHAR, 0, NULL, VARIABLE_NOT_IN_BINLOG,
+              NULL, NULL, NULL)
+  {
+    option.var_type|= GET_STR;
+  }
+  bool do_check(THD *thd, set_var *var) override
+  {
+    DBUG_ASSERT(FALSE);
+    return true;
+  }
+  bool session_update(THD *thd, set_var *var) override
+  {
+    DBUG_ASSERT(FALSE);
+    return true;
+  }
+  bool global_update(THD *thd, set_var *var) override
+  {
+    DBUG_ASSERT(FALSE);
+    return false;
+  }
+  void session_save_default(THD *thd, set_var *var) override
+  { DBUG_ASSERT(FALSE); }
+  void global_save_default(THD *thd, set_var *var) override
+  { DBUG_ASSERT(FALSE); }
+protected:
+  const uchar *session_value_ptr(THD *thd, const LEX_CSTRING *base) const override
+  {
+    return thd->variables.backtrace_str ?
+      (uchar *) &(thd->variables.backtrace_str[0]) : NULL;
   }
 };
 

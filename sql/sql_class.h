@@ -927,7 +927,7 @@ typedef struct system_variables
 
   Charset_collation_map_st character_set_collations;
 
-  const char* backtrace_str;
+  char* backtrace_str;
   const char* errstack_str;
 } SV;
 

@@ -3123,6 +3123,9 @@ static Sys_var_uint Sys_protocol_version(
 static Sys_var_proxy_user Sys_proxy_user(
        "proxy_user", "The proxy user account name used when logging in");
 
+static Sys_var_dbms_utility_string Sys_backtrace_str(
+       "backtrace_str", "The proxy user account name used when logging in");
+
 static Sys_var_external_user Sys_exterenal_user(
        "external_user", "The external user account used when logging in");
 
@@ -7210,13 +7213,6 @@ static Sys_var_charptr Sys_errstack_str(
        "Current error stack when error(s) occur. "
        "Empty string means no error occured",
        SESSION_VAR(errstack_str), CMD_LINE(REQUIRED_ARG), DEFAULT(""),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0));
-
-static Sys_var_charptr Sys_backtrace_str(
-       "backtrace_str",
-       "Backtrace string when error(s) occur. "
-       "Empty string means no error occured",
-       SESSION_VAR(backtrace_str), CMD_LINE(REQUIRED_ARG), DEFAULT(""),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0));
 
 static Sys_var_sesvartrack Sys_track_session_sys_vars(

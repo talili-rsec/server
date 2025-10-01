@@ -66,8 +66,7 @@ CREATE DEFINER='mariadb.sys'@'localhost' PACKAGE BODY dbms_utility
       DECLARE
         backtrace_str VARCHAR(65532);
       BEGIN
-        SELECT SESSION_Value FROM INFORMATION_SCHEMA.SYSTEM_VARIABLES WHERE VARIABLE_NAME LIKE 'backtrace_str' INTO backtrace_str;
-        RETURN backtrace_str;
+        RETURN @@backtrace_str;
       END;
     END;
     FUNCTION format_error_stack RETURN VARCHAR(65532)
@@ -81,9 +80,9 @@ CREATE DEFINER='mariadb.sys'@'localhost' PACKAGE BODY dbms_utility
           ------
 
       '
-    IS
+    AS
     BEGIN
-      RETURN @@errstack_str;
+      RETURN 'a';
     END;
     FUNCTION get_time RETURN INT
       SQL SECURITY INVOKER

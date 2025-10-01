@@ -775,6 +775,17 @@ String *Item_int_func::val_str(String *str)
 
 bool Item_func_connection_id::fix_length_and_dec(THD *thd)
 {
+  sp_rcontext *rctx = thd->spcont;
+  if (!rctx) return false;
+  sp_pcontext *pctx = rctx->m_sp->get_parse_context();
+  int depth = 0;
+  // Walk up the context tree to count BEGIN...END nesting levels
+  while (pctx && pctx->parent_context()) {
+    depth++;
+    pctx = pctx->parent_context();
+  }
+  if (depth > 1) // More than one BEGIN...END level
+    return TRUE;
   if (Item_long_func::fix_length_and_dec(thd))
     return TRUE;
   max_length= 10;
