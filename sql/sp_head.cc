@@ -1402,90 +1402,7 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
       err_status= FALSE;
       if (!i->m_ctx->parent_context()->parent_context())
       {
-        //construct backtrace_str starting with reversed errframes_strs
-        int err_frames_strs_size=
-            static_cast<int>(thd->error_stack.size()); 
-        for (int loop_ctr= err_frames_strs_size - 1; loop_ctr >= 0;
-              loop_ctr--)
-        {
-          //construct string with err msg
-          char err[10]= "";
-
-          sprintf(err, "%i", thd->error_stack[loop_ctr].err_no);
-          thd->errstack_str.append(err, strlen(err));
-          thd->errstack_str.append( ": ", 2);
-          thd->errstack_str.append(thd->error_stack[
-              loop_ctr].msg, strlen(thd->error_stack[
-              loop_ctr].msg));
-          thd->errstack_str.append('\n');
-
-          //construct string with no err msg
-          char line_no_str[20]= "";
-
-          sprintf(err, "%i", ER_SP_STACK_TRACE);
-          sprintf(line_no_str, "%i", thd->erroring_bt_list[
-              loop_ctr].line_no);
-
-          thd->backtrace_std_str.append(err, strlen(err));
-          thd->errstack_str.append(err, strlen(err));
-          thd->backtrace_std_str.append( ": at \"", 6);
-          thd->errstack_str.append( ": at \"", 6);
-          thd->backtrace_std_str.append(thd->main_security_ctx.user,
-              strlen(thd->main_security_ctx.user));
-          thd->errstack_str.append(thd->main_security_ctx.user, strlen(
-              thd->main_security_ctx.user));
-          thd->backtrace_std_str.append(".", 1);
-          thd->errstack_str.append(".", 1);
-          thd->backtrace_std_str.append(
-              thd->erroring_bt_list[loop_ctr].qname, 
-              strlen( thd->erroring_bt_list[loop_ctr].qname));
-          thd->errstack_str.append(
-              thd->erroring_bt_list[loop_ctr].qname, 
-              strlen( thd->erroring_bt_list[loop_ctr].qname));
-          thd->backtrace_std_str.append("\" at line ", 10);
-          thd->errstack_str.append("\" at line ", 10);
-          thd->backtrace_std_str.append(line_no_str,
-              strlen(line_no_str));
-          thd->errstack_str.append(line_no_str, strlen(line_no_str));
-          thd->backtrace_std_str.append('\n');
-          thd->errstack_str.append('\n');
-
-        }
-        //append the non-erroring frames also in reversed order
-        int normalframes_strs_size=
-            static_cast<int>(thd->bt_list.size()); 
-        for (int loop_ctr= normalframes_strs_size - 2; loop_ctr >= 0;
-            loop_ctr--)
-        {
-          char err[10]= "";
-          char line_no_str[20]= "";
-          sprintf(err, "%i", ER_SP_STACK_TRACE);
-          sprintf(line_no_str, "%i", thd->bt_list[loop_ctr].line_no);
-          thd->backtrace_std_str.append(err, strlen(err));
-          thd->errstack_str.append(err, strlen(err));
-          thd->backtrace_std_str.append( ": at \"", 6);
-          thd->errstack_str.append( ": at \"", 6);
-          thd->backtrace_std_str.append(thd->main_security_ctx.user,
-              strlen(thd->main_security_ctx.user));
-          thd->errstack_str.append(thd->main_security_ctx.user,
-              strlen(thd->main_security_ctx.user));
-          thd->backtrace_std_str.append(".", 1);
-          thd->errstack_str.append(".", 1);
-          thd->backtrace_std_str.append(thd->bt_list[loop_ctr].qname,
-              strlen( thd->bt_list[loop_ctr].qname));
-          thd->errstack_str.append(thd->bt_list[loop_ctr].qname,
-              strlen( thd->bt_list[loop_ctr].qname));
-          thd->backtrace_std_str.append("\" at line ", 10);
-          thd->errstack_str.append("\" at line ", 10);
-          thd->backtrace_std_str.append(line_no_str,
-              strlen(line_no_str));
-          thd->errstack_str.append(line_no_str, strlen(line_no_str));
-          thd->backtrace_std_str.append('\n');
-          thd->errstack_str.append('\n');
-        }
         thd->variables.backtrace_str= thd->backtrace_std_str.c_ptr();
-        thd->variables.errstack_str= thd->errstack_str.c_ptr();
-        thd->instr_component_list.clear();
       }
       
     }
@@ -1883,10 +1800,7 @@ void sp_head::generate_non_erroring_bt_part(THD *thd, sp_instr *i)
       visited in the do-while loop where we're in thrice.  The 1st and the
       3rd visits have the same line numbers of their instructions.
     */
-    if (instr_and_lineno.qname && thd->instr_component_list.front()->qname && 
-        !strcmp(instr_and_lineno.qname, ((Backtrace_info_type*) 
-        thd->instr_component_list.front())->qname) &&
-        thd->instr_component_list.front()->line_no == instr_and_lineno.line_no)
+    if (dynamic_cast<sp_instr_stmt *>(i) && instr_and_lineno.qname)
     {
       thd->bt_list.push(instr_and_lineno);
       if (thd->first_call || thd->first_2_frames.size() == 1)

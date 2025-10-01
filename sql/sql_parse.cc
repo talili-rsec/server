@@ -7533,6 +7533,7 @@ void THD::reset_backtrace_data()
   variables.errstack_str= (char*)"";
   errstack_str.set("", 0, system_charset_info);
   backtrace_std_str.set("", 0, system_charset_info);
+  backtrace_strings_constructed= FALSE;
 }
 
 

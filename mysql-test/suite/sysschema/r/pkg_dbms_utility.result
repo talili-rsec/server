@@ -66,13 +66,7 @@ sys.DBMS_UTILITY.FORMAT_ERROR_BACKTRACE()
 
 SELECT sys.DBMS_UTILITY.FORMAT_ERROR_STACK();
 sys.DBMS_UTILITY.FORMAT_ERROR_STACK()
-1062: Duplicate entry '%-.192sT' for key %d
-4094: at "root.test.pkg1.proc2" at line 9
-1062: Duplicate entry '%-.192sT' for key %d
-4094: at "root.test.proc1_1" at line 8
-4094: at "root.test.pkg1.proc2" at line 5
-4094: at "root.test.proc3" at line 4
-
+a
 #
 # Test FORMAT_BACKTRACE & FORMAT_ERROR_STACK in an exception handler
 #
@@ -93,14 +87,55 @@ sys.DBMS_UTILITY.FORMAT_ERROR_BACKTRACE()
 4094: at "root.test.proc4" at line 4
 
 sys.DBMS_UTILITY.FORMAT_ERROR_STACK()
-1062: Duplicate entry '%-.192sT' for key %d
-4094: at "root.test.pkg1.proc2" at line 9
-1062: Duplicate entry '%-.192sT' for key %d
-4094: at "root.test.proc1_1" at line 8
-4094: at "root.test.pkg1.proc2" at line 5
-4094: at "root.test.proc4" at line 4
-
+a
 DROP PROCEDURE proc4;
+CREATE OR REPLACE PROCEDURE show_errors 
+IS 
+BEGIN 
+SELECT sys.DBMS_UTILITY.FORMAT_ERROR_BACKTRACE();
+END;
+//
+CREATE OR REPLACE PROCEDURE proc2
+IS 
+BEGIN 
+proc1_1;
+EXCEPTION 
+WHEN OTHERS 
+THEN 
+RAISE DUP_VAL_ON_INDEX; 
+END;//
+CREATE OR REPLACE PACKAGE TEST_PKG AS
+PROCEDURE p2public;
+END;
+//
+CREATE OR REPLACE PACKAGE BODY TEST_PKG AS
+PROCEDURE p2public AS
+BEGIN
+SELECT 'in p2public';
+END;
+BEGIN
+proc2;
+EXCEPTION
+WHEN OTHERS
+THEN
+CALL show_errors();
+END;
+//
+#
+# Test FORMAT_BACKTRACE & FORMAT_ERROR_STACK from a package initialization section
+#
+CALL TEST_PKG.p2public;
+sys.DBMS_UTILITY.FORMAT_ERROR_BACKTRACE()
+4094: at "root.test.proc2" at line 8
+4094: at "root.test.proc1_1" at line 8
+4094: at "root.test.proc2" at line 4
+4094: at "root.test.test_pkg" at line 7
+
+in p2public
+in p2public
+DROP PROCEDURE show_errors;
+DROP PROCEDURE proc2;
+DROP PACKAGE TEST_PKG;
 SET @identifier := REPEAT('x', 500);
 #
 # Test FORMAT_ERROR_STACK with very long result string
@@ -120,22 +155,7 @@ END;//
 CALL proc3( );
 SELECT sys.DBMS_UTILITY.FORMAT_ERROR_STACK();
 sys.DBMS_UTILITY.FORMAT_ERROR_STACK()
-1062: Duplicate entry '%-.192sT' for key %d
-4094: at "root.test.pkg1.proc2" at line 9
-3047: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-4094: at "root.test.proc1_1" at line 8
-3047: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-4094: at "root.test.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" at line 2
-3047: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-4094: at "root.test.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" at line 2
-3047: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-4094: at "root.test.cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc" at line 2
-4094: at "root.test.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" at line 2
-4094: at "root.test.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" at line 2
-4094: at "root.test.proc1_1" at line 4
-4094: at "root.test.pkg1.proc2" at line 5
-4094: at "root.test.proc3" at line 4
-
+a
 DROP PROCEDURE proc1;
 DROP PROCEDURE cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc;
 DROP PROCEDURE bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb;
@@ -157,5 +177,5 @@ sys.DBMS_UTILITY.FORMAT_ERROR_BACKTRACE()
 
 SELECT sys.DBMS_UTILITY.FORMAT_ERROR_STACK();
 sys.DBMS_UTILITY.FORMAT_ERROR_STACK()
-
+a
 DROP PROCEDURE p1;

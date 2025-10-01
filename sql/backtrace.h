@@ -40,6 +40,7 @@ public:
     instr_component_list(PSI_INSTRUMENT_MEM),
     errframes_strs(PSI_INSTRUMENT_MEM),
     normalframes_strs(PSI_INSTRUMENT_MEM),
+    backtrace_strings_constructed(FALSE),
     first_2_frames(PSI_INSTRUMENT_MEM),
     post_err_stack_top_visit_ctr(0)
   { }
@@ -51,6 +52,7 @@ public:
   Dynamic_array<String> errframes_strs;
   Dynamic_array<String> normalframes_strs;
   bool first_call;
+  bool backtrace_strings_constructed;
   Dynamic_array<String> first_2_frames;
   String backtrace_std_str;
   String errstack_str;
