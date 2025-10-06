@@ -27,7 +27,7 @@ typedef struct Backtrace_info
 typedef struct Error_info
 {
   int err_no;
-  const char *msg;
+  String msg;
 } Error_info_type;
 
 class Backtrace

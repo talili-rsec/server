@@ -82,7 +82,7 @@ CREATE DEFINER='mariadb.sys'@'localhost' PACKAGE BODY dbms_utility
       '
     AS
     BEGIN
-      RETURN 'a';
+      RETURN @@errstack_str;
     END;
     FUNCTION get_time RETURN INT
       SQL SECURITY INVOKER

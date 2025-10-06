@@ -1426,8 +1426,6 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
       if (!strcmp(m_qname.str, thd->first_2_frames.front()->ptr()) &&
           !i->m_ctx->parent_context()->parent_context())
       {
-        thd->bt_list.push(thd->last_instr);
-        thd->last_instr.qname.release();
         construct_dbms_utility_strings(thd);
         int normalframes_strs_size= static_cast<int>(thd->bt_list.size());
         for (int loop_ctr= normalframes_strs_size - 1; loop_ctr >= 0;
@@ -1439,6 +1437,11 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
             loop_ctr++)
         {
           thd->erroring_bt_list[loop_ctr].qname.set_alloced(NULL, 0, 0);
+        }
+        for (size_t loop_ctr= 0; loop_ctr < thd->error_stack.size();
+            loop_ctr++)
+        {
+          thd->error_stack[loop_ctr].msg.set_alloced(NULL, 0, 0);
         }
       }
       
@@ -1568,8 +1571,9 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
         
         Error_info_type msg_and_errno;
         msg_and_errno.err_no= da->get_sql_errno();
-        msg_and_errno.msg= const_cast<char*>(da->message());
+        msg_and_errno.msg.append(da->message(), strlen(da->message()));
         thd->error_stack.push(msg_and_errno);
+        msg_and_errno.msg.release();
       }
     }
   }
@@ -1654,8 +1658,8 @@ void sp_head::construct_dbms_utility_strings(THD *thd) const
     thd->errstack_str.append(err, strlen(err));
     thd->errstack_str.append( ": ", 2);
     thd->errstack_str.append(thd->error_stack[
-        loop_ctr].msg, strlen(thd->error_stack[
-        loop_ctr].msg));
+        loop_ctr].msg.ptr(), strlen(thd->error_stack[
+        loop_ctr].msg.ptr()));
     thd->errstack_str.append('\n');
 
     //construct string with no err msg
