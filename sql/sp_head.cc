@@ -1219,17 +1219,20 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
 #endif
   sp_instr *i;
   DEBUG_SYNC(thd, "sp_head_execute_before_loop");
-  Backtrace_info_type instr_and_lineno;
-  instr_and_lineno.qname= const_cast<char*>(m_qname.str);
-
-  if (instr_and_lineno.qname)
+  if (m_qname.str && !thd->sql_condition_handled)
   {
+    Backtrace_info_type instr_and_lineno;
+    instr_and_lineno.qname.append(m_qname.str, strlen(m_qname.str));
+
     thd->bt_list.push(instr_and_lineno);
+    instr_and_lineno.qname.release();
+
+    thd->last_instr.qname.set("", 0, system_charset_info);
+    thd->last_instr.qname.append(m_qname.str, strlen(m_qname.str));
     if (thd->first_call || thd->first_2_frames.size() == 1)
     {
       thd->first_call= false;
-      String qname(instr_and_lineno.qname, strlen(instr_and_lineno.qname),
-          system_charset_info);
+      String qname(m_qname.str, strlen(m_qname.str), system_charset_info);
       thd->first_2_frames.push(qname);
       qname.release();
     }
@@ -1257,7 +1260,11 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
       break;
     }
 
-    thd->bt_list.back()->line_no= i->m_lineno;
+    if (!thd->sql_condition_handled)
+    {
+      thd->bt_list.back()->line_no= thd->last_instr.line_no= i->m_lineno;  
+    }
+    
 
     /* Reset number of warnings for this query. */
     thd->get_stmt_da()->reset_for_next_command();
@@ -1415,10 +1422,24 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
         ctx->handle_sql_condition(thd, &ip, i))
     {
       err_status= FALSE;
+      thd->sql_condition_handled= TRUE;
       if (!strcmp(m_qname.str, thd->first_2_frames.front()->ptr()) &&
           !i->m_ctx->parent_context()->parent_context())
       {
+        thd->bt_list.push(thd->last_instr);
+        thd->last_instr.qname.release();
         construct_dbms_utility_strings(thd);
+        int normalframes_strs_size= static_cast<int>(thd->bt_list.size());
+        for (int loop_ctr= normalframes_strs_size - 1; loop_ctr >= 0;
+            loop_ctr--)
+        {
+          thd->bt_list[loop_ctr].qname.set_alloced(NULL, 0, 0);
+        }
+        for (size_t loop_ctr= 0; loop_ctr < thd->erroring_bt_list.size();
+            loop_ctr++)
+        {
+          thd->erroring_bt_list[loop_ctr].qname.set_alloced(NULL, 0, 0);
+        }
       }
       
     }
@@ -1443,6 +1464,12 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
   } while (!err_status && likely(!thd->killed) &&
            likely(!thd->is_fatal_error) &&
            !thd->spcont->pause_state);
+
+  if (!thd->sql_condition_handled && !err_status)
+  {
+    thd->bt_list.back()->qname.set_alloced(NULL, 0, 0);
+    thd->bt_list.pop();
+  }
 
 #if defined(ENABLED_PROFILING)
   thd->profiling.finish_current_query();
@@ -1535,8 +1562,9 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
 
         Backtrace_info_type instr_and_linno;
         instr_and_linno.line_no= i->m_lineno;
-        instr_and_linno.qname= const_cast<char*>(m_qname.str);
+        instr_and_linno.qname.append(m_qname.str, strlen(m_qname.str));
         thd->erroring_bt_list.push(instr_and_linno);
+        instr_and_linno.qname.release();
         
         Error_info_type msg_and_errno;
         msg_and_errno.err_no= da->get_sql_errno();
@@ -1647,12 +1675,10 @@ void sp_head::construct_dbms_utility_strings(THD *thd) const
         thd->main_security_ctx.user));
     thd->backtrace_std_str.append(".", 1);
     thd->errstack_str.append(".", 1);
-    thd->backtrace_std_str.append(
-        thd->erroring_bt_list[loop_ctr].qname, 
-        strlen( thd->erroring_bt_list[loop_ctr].qname));
-    thd->errstack_str.append(
-        thd->erroring_bt_list[loop_ctr].qname, 
-        strlen( thd->erroring_bt_list[loop_ctr].qname));
+    thd->backtrace_std_str.append(thd->erroring_bt_list[loop_ctr].qname.ptr(), 
+        strlen(thd->erroring_bt_list[loop_ctr].qname.ptr()));
+    thd->errstack_str.append(thd->erroring_bt_list[loop_ctr].qname.ptr(), 
+        strlen(thd->erroring_bt_list[loop_ctr].qname.ptr()));
     thd->backtrace_std_str.append("\" at line ", 10);
     thd->errstack_str.append("\" at line ", 10);
     thd->backtrace_std_str.append(line_no_str,
@@ -1665,7 +1691,7 @@ void sp_head::construct_dbms_utility_strings(THD *thd) const
   //append the non-erroring frames also in reversed order
   int normalframes_strs_size=
       static_cast<int>(thd->bt_list.size()); 
-  for (int loop_ctr= normalframes_strs_size - 2; loop_ctr >= 0;
+  for (int loop_ctr= normalframes_strs_size - 1; loop_ctr >= 0;
       loop_ctr--)
   {
     char err[10]= "";
@@ -1682,10 +1708,10 @@ void sp_head::construct_dbms_utility_strings(THD *thd) const
         strlen(thd->main_security_ctx.user));
     thd->backtrace_std_str.append(".", 1);
     thd->errstack_str.append(".", 1);
-    thd->backtrace_std_str.append(thd->bt_list[loop_ctr].qname,
-        strlen( thd->bt_list[loop_ctr].qname));
-    thd->errstack_str.append(thd->bt_list[loop_ctr].qname,
-        strlen( thd->bt_list[loop_ctr].qname));
+    thd->backtrace_std_str.append(thd->bt_list[loop_ctr].qname.ptr(), 
+        strlen(thd->bt_list[loop_ctr].qname.ptr()));
+    thd->errstack_str.append(thd->bt_list[loop_ctr].qname.ptr(), 
+        strlen(thd->bt_list[loop_ctr].qname.ptr()));
     thd->backtrace_std_str.append("\" at line ", 10);
     thd->errstack_str.append("\" at line ", 10);
     thd->backtrace_std_str.append(line_no_str,
@@ -1696,167 +1722,6 @@ void sp_head::construct_dbms_utility_strings(THD *thd) const
   }
   thd->variables.backtrace_str= thd->backtrace_std_str.c_ptr();
   thd->variables.errstack_str= thd->errstack_str.c_ptr();
-}
-
-/*
-  Generate the normal (non-erroring) part of the backtrace.  The sequence of
-  the members here are the reverse of the sequence of the members of the 
-  erroring part of the backtrace.
-
-  @param thd                  Thread context.
-  @param i                    sp_instr that provides the line numbers for the
-                              normal part of the backtrace.
-
-  @return void.
-*/
-
-void sp_head::generate_non_erroring_bt_part(THD *thd, sp_instr *i)
-{
-  Backtrace_info_type instr_and_lineno;
-  instr_and_lineno.line_no= i->m_lineno;
-  instr_and_lineno.qname= const_cast<char*>(m_qname.str);
-
-  if (thd->error_stack.size())
-  {
-    if (thd->first_2_frames.size() == 2)
-    {
-      DBUG_ASSERT(thd->first_2_frames.back()->ptr());
-      DBUG_ASSERT(thd->first_2_frames.front()->ptr());
-      if ((instr_and_lineno.qname &&
-          !strcmp(instr_and_lineno.qname, thd->first_2_frames.back()->ptr())) ||
-          (instr_and_lineno.qname &&
-          !strcmp(instr_and_lineno.qname, thd->first_2_frames.front()->ptr())))
-      {
-        thd->post_err_stack_top_visit_ctr++;
-        return;
-      }
-    }
-    else if (thd->first_2_frames.size() == 1) 
-    {
-      DBUG_ASSERT(thd->first_2_frames.back()->ptr());
-      if (instr_and_lineno.qname && 
-        !strcmp(instr_and_lineno.qname, thd->first_2_frames.back()->ptr()))
-      {
-        thd->post_err_stack_top_visit_ctr++;
-        return;
-      }
-    }
-    else if (m_qname.str && !strcmp(m_qname.str, "sys.dbms_utility") &&
-      !thd->instr_component_list.size())
-    {
-      //request for the backtrace & "error stack" was done outside a routine
-      /*thd->variables.backtrace_str= (char*)"";
-      thd->variables.errstack_str= (char*)"";*/
-      return;
-      
-    }
-  }
-  
-  //Non-erroring part of the backtraces
-
-  thd->instr_component_list.push(instr_and_lineno);
-  /*
-    We've moved to the next real procedure already.  We need to maintain
-    1 entry of the procedure only for the non-erroring part of the
-    backtraces.
-
-    For e.g.:
-
-    -----------------------------------------------------------------------
-    | nth pass through the if condition   | m_qname.str     | i->m_lineno |
-    |-------------------------------------+-----------------+-------------|
-    | 1                                   | test.pkg1.proc2 | 5           |   
-    | 2                                   | test.pkg1.proc2 | 5           |               
-    | 3                                   | test.pkg1.proc2 | 5           |    
-    | 4                                   | test.proc1_1    | 2           |    
-    -----------------------------------------------------------------------
-
-    As shown in the table above, it is still on the 4th pass of the below if
-    condition that we're encountering the next real procedure (frame, in call
-    stack terminology).  thd->instr_component_list is designed to be a list
-    containing unique procedure names
-  */
-  if (thd->instr_component_list.size() > 1 && thd->instr_component_list[
-      thd->instr_component_list.size() - 2].qname && instr_and_lineno.qname &&
-      strcmp(thd->instr_component_list[
-      thd->instr_component_list.size() - 2].qname,
-      instr_and_lineno.qname))
-  {
-    thd->instr_component_list.del(0);
-  }
-  else if (thd->instr_component_list.size() > 2)
-  {
-    /*
-      Each procedure execution that aren't yet produing errors are usually 
-      visited in the do-while loop where we're in thrice.  The 1st and the
-      3rd visits have the same line numbers of their instructions.
-    */
-    if (dynamic_cast<sp_instr_stmt *>(i) && instr_and_lineno.qname)
-    {
-      thd->bt_list.push(instr_and_lineno);
-      if (thd->first_call || thd->first_2_frames.size() == 1)
-      {
-        thd->first_call= false;
-        String qname(instr_and_lineno.qname, strlen(instr_and_lineno.qname),
-            system_charset_info);
-        thd->first_2_frames.push(qname);
-        qname.release();
-      }
-      for (int loop_ctr= 0; loop_ctr < 2; loop_ctr++)
-      {
-        thd->instr_component_list.del(0);
-      }
-    }
-    else
-    {
-      int normalframes_strs_size=
-          static_cast<int>(thd->normalframes_strs.size()); 
-      for (int loop_ctr= normalframes_strs_size - 1; loop_ctr >= 0; loop_ctr--)
-      {
-        thd->normalframes_strs[loop_ctr].set_alloced(NULL, 0, 0);
-      }
-    }
-  }
-  //check if we've returned back to the 2nd or starting sp
-  else if (!thd->error_stack.size())
-  {
-    //delete normalframes_strs Strings already as no error occurred
-    if (thd->first_2_frames.size() == 2)
-    {
-      DBUG_ASSERT(thd->first_2_frames.back()->ptr());
-      DBUG_ASSERT(thd->first_2_frames.front()->ptr());
-      if ((instr_and_lineno.qname &&
-          !strcmp(instr_and_lineno.qname, thd->first_2_frames.back()->ptr())) ||
-          (instr_and_lineno.qname &&
-          !strcmp(instr_and_lineno.qname, thd->first_2_frames.front()->ptr())))
-      {
-        int normalframes_strs_size=
-            static_cast<int>(thd->normalframes_strs.size());
-        for (int loop_ctr= normalframes_strs_size - 1; loop_ctr >= 0;
-            loop_ctr--)
-        {
-          thd->normalframes_strs[loop_ctr].set_alloced(NULL, 0, 0);
-        }
-        thd->instr_component_list.clear();
-      }
-    }
-    else if (thd->first_2_frames.size() == 1) 
-    {
-      DBUG_ASSERT(thd->first_2_frames.back()->ptr());
-      if (instr_and_lineno.qname && 
-        !strcmp(instr_and_lineno.qname, thd->first_2_frames.back()->ptr()))
-      {
-        int normalframes_strs_size=
-            static_cast<int>(thd->normalframes_strs.size()); 
-        for (int loop_ctr= normalframes_strs_size - 1; loop_ctr >= 0;
-            loop_ctr--)
-        {
-          thd->normalframes_strs[loop_ctr].set_alloced(NULL, 0, 0);
-        }
-        thd->instr_component_list.clear();
-      }
-    }
-  }
 }
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS

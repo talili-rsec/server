@@ -21,7 +21,7 @@
 typedef struct Backtrace_info
 {
   int line_no;
-  const char *qname;
+  String qname;
 } Backtrace_info_type;
 
 typedef struct Error_info
@@ -41,9 +41,12 @@ public:
     errframes_strs(PSI_INSTRUMENT_MEM),
     normalframes_strs(PSI_INSTRUMENT_MEM),
     backtrace_strings_constructed(FALSE),
+    sql_condition_handled(FALSE),
     first_2_frames(PSI_INSTRUMENT_MEM),
     post_err_stack_top_visit_ctr(0)
-  { }
+  { 
+    last_instr= {0, String()};
+  }
 
   Dynamic_array<Error_info_type> error_stack;
   Dynamic_array<Backtrace_info_type> bt_list;
@@ -53,7 +56,9 @@ public:
   Dynamic_array<String> normalframes_strs;
   bool first_call;
   bool backtrace_strings_constructed;
+  bool sql_condition_handled;
   Dynamic_array<String> first_2_frames;
+  Backtrace_info_type last_instr;
   String backtrace_std_str;
   String errstack_str;
   int post_err_stack_top_visit_ctr;

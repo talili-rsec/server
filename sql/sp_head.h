@@ -1001,7 +1001,7 @@ protected:
   bool
   execute(THD *thd, bool merge_da_on_success);
 
-  void generate_non_erroring_bt_part(THD *thd, sp_instr *i);
+  void construct_dbms_utility_strings(THD *thd) const;
 
   /**
     Perform a forward flow analysis in the generated code.
