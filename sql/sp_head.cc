@@ -1643,6 +1643,40 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
   DBUG_RETURN(err_status);
 }
 
+void sp_head::append_to_dbms_utility_strings(THD *thd, const LEX_CSTRING &str) const
+{
+  thd->backtrace_std_str.append(str);
+  thd->errstack_str.append(str);
+}
+
+void sp_head::append_to_dbms_utility_strings(THD *thd, const char character)
+    const
+{
+  thd->backtrace_std_str.append(character);
+  thd->errstack_str.append(character);
+}
+
+void sp_head::construct_dbms_utility_string_line(THD *thd, Dynamic_array<
+    Backtrace_info_type> &frames_list, const int loop_ctr) const
+{
+  char err[10]= "";
+  char line_no_str[20]= "";
+
+  sprintf(err, "%i", ER_SP_STACK_TRACE);
+  sprintf(line_no_str, "%i", frames_list[loop_ctr].line_no);
+
+  append_to_dbms_utility_strings(thd, {err, strlen(err)});
+  append_to_dbms_utility_strings(thd, {STRING_WITH_LEN(": ")});
+  append_to_dbms_utility_strings(thd, {thd->main_security_ctx.user, strlen(
+      thd->main_security_ctx.user)});
+  append_to_dbms_utility_strings(thd, '.');
+  append_to_dbms_utility_strings(thd, {frames_list[loop_ctr].qname.ptr(),
+                                       frames_list[loop_ctr].qname.length()});
+  append_to_dbms_utility_strings(thd, {STRING_WITH_LEN(" at line ")});
+  append_to_dbms_utility_strings(thd, {line_no_str, strlen(line_no_str)});
+  append_to_dbms_utility_strings(thd, '\n');
+}
+
 void sp_head::construct_dbms_utility_strings(THD *thd) const
 {
   //construct backtrace_str starting with reversed errframes_strs
@@ -1655,41 +1689,13 @@ void sp_head::construct_dbms_utility_strings(THD *thd) const
     char err[10]= "";
 
     sprintf(err, "%i", thd->error_stack[loop_ctr].err_no);
-    thd->errstack_str.append(err, strlen(err));
-    thd->errstack_str.append( ": ", 2);
-    thd->errstack_str.append(thd->error_stack[
-        loop_ctr].msg.ptr(), strlen(thd->error_stack[
-        loop_ctr].msg.ptr()));
+    thd->errstack_str.append({err, strlen(err)});
+    thd->errstack_str.append({STRING_WITH_LEN(": ")});
+    thd->errstack_str.append(thd->error_stack[loop_ctr].msg);
     thd->errstack_str.append('\n');
 
     //construct string with no err msg
-    char line_no_str[20]= "";
-
-    sprintf(err, "%i", ER_SP_STACK_TRACE);
-    sprintf(line_no_str, "%i", thd->erroring_bt_list[
-        loop_ctr].line_no);
-
-    thd->backtrace_std_str.append(err, strlen(err));
-    thd->errstack_str.append(err, strlen(err));
-    thd->backtrace_std_str.append( ": at \"", 6);
-    thd->errstack_str.append( ": at \"", 6);
-    thd->backtrace_std_str.append(thd->main_security_ctx.user,
-        strlen(thd->main_security_ctx.user));
-    thd->errstack_str.append(thd->main_security_ctx.user, strlen(
-        thd->main_security_ctx.user));
-    thd->backtrace_std_str.append(".", 1);
-    thd->errstack_str.append(".", 1);
-    thd->backtrace_std_str.append(thd->erroring_bt_list[loop_ctr].qname.ptr(), 
-        strlen(thd->erroring_bt_list[loop_ctr].qname.ptr()));
-    thd->errstack_str.append(thd->erroring_bt_list[loop_ctr].qname.ptr(), 
-        strlen(thd->erroring_bt_list[loop_ctr].qname.ptr()));
-    thd->backtrace_std_str.append("\" at line ", 10);
-    thd->errstack_str.append("\" at line ", 10);
-    thd->backtrace_std_str.append(line_no_str,
-        strlen(line_no_str));
-    thd->errstack_str.append(line_no_str, strlen(line_no_str));
-    thd->backtrace_std_str.append('\n');
-    thd->errstack_str.append('\n');
+    construct_dbms_utility_string_line(thd, thd->erroring_bt_list, loop_ctr);
 
   }
   //append the non-erroring frames also in reversed order
@@ -1698,31 +1704,7 @@ void sp_head::construct_dbms_utility_strings(THD *thd) const
   for (int loop_ctr= normalframes_strs_size - 1; loop_ctr >= 0;
       loop_ctr--)
   {
-    char err[10]= "";
-    char line_no_str[20]= "";
-    sprintf(err, "%i", ER_SP_STACK_TRACE);
-    sprintf(line_no_str, "%i", thd->bt_list[loop_ctr].line_no);
-    thd->backtrace_std_str.append(err, strlen(err));
-    thd->errstack_str.append(err, strlen(err));
-    thd->backtrace_std_str.append( ": at \"", 6);
-    thd->errstack_str.append( ": at \"", 6);
-    thd->backtrace_std_str.append(thd->main_security_ctx.user,
-        strlen(thd->main_security_ctx.user));
-    thd->errstack_str.append(thd->main_security_ctx.user,
-        strlen(thd->main_security_ctx.user));
-    thd->backtrace_std_str.append(".", 1);
-    thd->errstack_str.append(".", 1);
-    thd->backtrace_std_str.append(thd->bt_list[loop_ctr].qname.ptr(), 
-        strlen(thd->bt_list[loop_ctr].qname.ptr()));
-    thd->errstack_str.append(thd->bt_list[loop_ctr].qname.ptr(), 
-        strlen(thd->bt_list[loop_ctr].qname.ptr()));
-    thd->backtrace_std_str.append("\" at line ", 10);
-    thd->errstack_str.append("\" at line ", 10);
-    thd->backtrace_std_str.append(line_no_str,
-        strlen(line_no_str));
-    thd->errstack_str.append(line_no_str, strlen(line_no_str));
-    thd->backtrace_std_str.append('\n');
-    thd->errstack_str.append('\n');
+    construct_dbms_utility_string_line(thd, thd->bt_list, loop_ctr);
   }
   thd->variables.backtrace_str= thd->backtrace_std_str.c_ptr();
   thd->variables.errstack_str= thd->errstack_str.c_ptr();

@@ -1001,6 +1001,10 @@ protected:
   bool
   execute(THD *thd, bool merge_da_on_success);
 
+  void append_to_dbms_utility_strings(THD *, const LEX_CSTRING &) const;
+  void append_to_dbms_utility_strings(THD *, const char) const;
+  void construct_dbms_utility_string_line(THD *thd, Dynamic_array<
+      Backtrace_info> &, const int) const;
   void construct_dbms_utility_strings(THD *thd) const;
 
   /**
