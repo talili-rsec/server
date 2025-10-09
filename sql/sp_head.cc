@@ -1221,20 +1221,16 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
   DEBUG_SYNC(thd, "sp_head_execute_before_loop");
   if (m_qname.str && !thd->sql_condition_handled)
   {
-    Backtrace_info_type instr_and_lineno;
+    struct Backtrace_info instr_and_lineno;
     instr_and_lineno.qname.append(m_qname.str, strlen(m_qname.str));
 
     thd->bt_list.push(instr_and_lineno);
     instr_and_lineno.qname.release();
 
-    thd->last_instr.qname.set("", 0, system_charset_info);
-    thd->last_instr.qname.append(m_qname.str, strlen(m_qname.str));
     if (thd->first_call || thd->first_2_frames.size() == 1)
     {
       thd->first_call= false;
-      String qname(m_qname.str, strlen(m_qname.str), system_charset_info);
-      thd->first_2_frames.push(qname);
-      qname.release();
+      thd->f1_sphead= this;
     }
   }
   do
@@ -1423,7 +1419,7 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
     {
       err_status= FALSE;
       thd->sql_condition_handled= TRUE;
-      if (!strcmp(m_qname.str, thd->first_2_frames.front()->ptr()) &&
+      if (this == thd->f1_sphead &&
           !i->m_ctx->parent_context()->parent_context())
       {
         construct_dbms_utility_strings(thd);
@@ -1442,6 +1438,11 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
             loop_ctr++)
         {
           thd->error_stack[loop_ctr].msg.set_alloced(NULL, 0, 0);
+        }
+        for (size_t loop_ctr= 0; loop_ctr < thd->first_2_frames.size();
+            loop_ctr++)
+        {
+          thd->first_2_frames[loop_ctr].set_alloced(NULL, 0, 0);
         }
       }
       
@@ -1468,10 +1469,59 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
            likely(!thd->is_fatal_error) &&
            !thd->spcont->pause_state);
 
-  if (!thd->sql_condition_handled && !err_status)
+  if (thd->bt_list.size() && !thd->sql_condition_handled && !err_status)
   {
     thd->bt_list.back()->qname.set_alloced(NULL, 0, 0);
-    thd->bt_list.pop();
+    thd->bt_list.del(thd->bt_list.size() - 1);
+    /*if (thd->first_2_frames.front() && !strcmp(thd->bt_list.back()->qname.ptr(),
+        thd->first_2_frames.front()->ptr()))
+    {
+      int normalframes_strs_size= static_cast<int>(thd->bt_list.size());
+      for (int loop_ctr= normalframes_strs_size - 1; loop_ctr >= 0;
+          loop_ctr--)
+      {
+        thd->bt_list[loop_ctr].qname.set_alloced(NULL, 0, 0);
+      }
+      for (size_t loop_ctr= 0; loop_ctr < thd->erroring_bt_list.size();
+          loop_ctr++)
+      {
+        thd->erroring_bt_list[loop_ctr].qname.set_alloced(NULL, 0, 0);
+      }
+      for (size_t loop_ctr= 0; loop_ctr < thd->error_stack.size();
+          loop_ctr++)
+      {
+        thd->error_stack[loop_ctr].msg.set_alloced(NULL, 0, 0);
+      }
+      for (size_t loop_ctr= 0; loop_ctr < thd->first_2_frames.size();
+          loop_ctr++)
+      {
+        thd->first_2_frames[loop_ctr].set_alloced(NULL, 0, 0);
+      }
+    }*/
+  }
+  if (!thd->bt_list.size())
+  {
+    int normalframes_strs_size= static_cast<int>(thd->bt_list.size());
+    for (int loop_ctr= normalframes_strs_size - 1; loop_ctr >= 0;
+        loop_ctr--)
+    {
+      thd->bt_list[loop_ctr].qname.set_alloced(NULL, 0, 0);
+    }
+    for (size_t loop_ctr= 0; loop_ctr < thd->erroring_bt_list.size();
+        loop_ctr++)
+    {
+      thd->erroring_bt_list[loop_ctr].qname.set_alloced(NULL, 0, 0);
+    }
+    for (size_t loop_ctr= 0; loop_ctr < thd->error_stack.size();
+        loop_ctr++)
+    {
+      thd->error_stack[loop_ctr].msg.set_alloced(NULL, 0, 0);
+    }
+    for (size_t loop_ctr= 0; loop_ctr < thd->first_2_frames.size();
+        loop_ctr++)
+    {
+      thd->first_2_frames[loop_ctr].set_alloced(NULL, 0, 0);
+    }
   }
 
 #if defined(ENABLED_PROFILING)
@@ -1563,13 +1613,13 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
 
         //Non-erroring part of the backtraces
 
-        Backtrace_info_type instr_and_linno;
+        struct Backtrace_info instr_and_linno;
         instr_and_linno.line_no= i->m_lineno;
         instr_and_linno.qname.append(m_qname.str, strlen(m_qname.str));
         thd->erroring_bt_list.push(instr_and_linno);
         instr_and_linno.qname.release();
         
-        Error_info_type msg_and_errno;
+        struct Error_info msg_and_errno;
         msg_and_errno.err_no= da->get_sql_errno();
         msg_and_errno.msg.append(da->message(), strlen(da->message()));
         thd->error_stack.push(msg_and_errno);
@@ -1657,7 +1707,7 @@ void sp_head::append_to_dbms_utility_strings(THD *thd, const char character)
 }
 
 void sp_head::construct_dbms_utility_string_line(THD *thd, Dynamic_array<
-    Backtrace_info_type> &frames_list, const int loop_ctr) const
+    struct Backtrace_info> &frames_list, const int loop_ctr) const
 {
   char err[10]= "";
   char line_no_str[20]= "";

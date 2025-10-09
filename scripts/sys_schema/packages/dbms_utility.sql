@@ -69,6 +69,31 @@ CREATE DEFINER='mariadb.sys'@'localhost' PACKAGE BODY dbms_utility
         RETURN @@backtrace_str;
       END;
     END;
+    FUNCTION truncate_to_2000_bytes(input TEXT)
+    RETURN TEXT
+    DETERMINISTIC
+    IS
+    BEGIN
+        DECLARE i INT DEFAULT 1;
+        result TEXT DEFAULT '';
+        moji TEXT;
+        byte_len INT DEFAULT 0;
+
+        BEGIN
+            <<label>>
+            WHILE i <= CHAR_LENGTH(input) LOOP
+              SET moji = SUBSTRING(input, i, 1);
+              SET byte_len = byte_len + LENGTH(moji);
+              IF byte_len > 2000 THEN
+                  LEAVE label;
+              END IF;
+              SET result = CONCAT(result, moji);
+              SET i = i + 1;
+            END LOOP label;
+            RETURN result;    
+        END;
+
+    END;
     FUNCTION format_error_stack RETURN VARCHAR(65532)
       SQL SECURITY INVOKER
       COMMENT '
@@ -83,6 +108,7 @@ CREATE DEFINER='mariadb.sys'@'localhost' PACKAGE BODY dbms_utility
     AS
     BEGIN
       RETURN @@errstack_str;
+      #RETURN truncate_to_2000_bytes(@@errstack_str);
     END;
     FUNCTION get_time RETURN INT
       SQL SECURITY INVOKER

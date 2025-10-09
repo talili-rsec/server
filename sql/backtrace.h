@@ -18,17 +18,19 @@
 
 #include <sql_string.h>
 
-typedef struct Backtrace_info
+struct Backtrace_info
 {
   int line_no;
   String qname;
-} Backtrace_info_type;
+};
 
-typedef struct Error_info
+struct Error_info
 {
   int err_no;
   String msg;
-} Error_info_type;
+};
+
+class sp_head;
 
 class Backtrace
 {
@@ -40,25 +42,67 @@ public:
     instr_component_list(PSI_INSTRUMENT_MEM),
     errframes_strs(PSI_INSTRUMENT_MEM),
     normalframes_strs(PSI_INSTRUMENT_MEM),
+    f1_sphead(NULL),
     backtrace_strings_constructed(FALSE),
     sql_condition_handled(FALSE),
     first_2_frames(PSI_INSTRUMENT_MEM),
     post_err_stack_top_visit_ctr(0)
-  { 
+  {
     last_instr= {0, String()};
   }
 
-  Dynamic_array<Error_info_type> error_stack;
-  Dynamic_array<Backtrace_info_type> bt_list;
-  Dynamic_array<Backtrace_info_type> erroring_bt_list;
-  Dynamic_array<Backtrace_info_type> instr_component_list;
+  ~Backtrace()
+  {
+    // Free String objects in error_stack
+    for (size_t i = 0; i < error_stack.size(); i++)
+    {
+      error_stack[i].msg.free();
+    }
+
+    // Free String objects in bt_list
+    for (size_t i = 0; i < bt_list.size(); i++)
+    {
+      bt_list[i].qname.free();
+    }
+
+    // Free String objects in erroring_bt_list
+    for (size_t i = 0; i < erroring_bt_list.size(); i++)
+    {
+      erroring_bt_list[i].qname.free();
+    }
+
+    // Free String objects in first_2_frames
+    for (size_t i = 0; i < first_2_frames.size(); i++)
+    {
+      first_2_frames[i].free();
+    }
+
+    // Free String objects in instr_component_list
+    for (size_t i = 0; i < instr_component_list.size(); i++)
+    {
+      instr_component_list[i].qname.free();
+    }
+
+    // last_instr also has a String member
+    last_instr.qname.free();
+
+    // Free the main strings
+    backtrace_std_str.free();
+    errstack_str.free();
+  }
+
+  Dynamic_array<struct Error_info> error_stack;
+  Dynamic_array<struct Backtrace_info> bt_list;
+  Dynamic_array<struct Backtrace_info> erroring_bt_list;
+  Dynamic_array<struct Backtrace_info> instr_component_list;
   Dynamic_array<String> errframes_strs;
   Dynamic_array<String> normalframes_strs;
+  sp_head* f1_sphead;
   bool first_call;
   bool backtrace_strings_constructed;
   bool sql_condition_handled;
   Dynamic_array<String> first_2_frames;
-  Backtrace_info_type last_instr;
+  struct Backtrace_info last_instr;
   String backtrace_std_str;
   String errstack_str;
   int post_err_stack_top_visit_ctr;

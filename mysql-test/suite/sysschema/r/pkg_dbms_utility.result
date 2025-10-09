@@ -17,7 +17,7 @@ ERROR 42000: Incorrect number of arguments for FUNCTION sys.DBMS_UTILITY.get_tim
 CREATE OR REPLACE PROCEDURE proc1
 IS
 BEGIN
-RAISE NO_DATA_FOUND;
+RAISE TOO_MANY_ROWS;
 END;
 //
 CREATE OR REPLACE PROCEDURE proc1_1
@@ -59,14 +59,27 @@ END;//
 CALL proc3( );
 SELECT sys.DBMS_UTILITY.FORMAT_ERROR_BACKTRACE();
 sys.DBMS_UTILITY.FORMAT_ERROR_BACKTRACE()
-4094: at "root.test.pkg1.proc2" at line 9
-4094: at "root.test.proc1_1" at line 8
-4094: at "root.test.pkg1.proc2" at line 5
-4094: at "root.test.proc3" at line 4
+4094: root.test.pkg1.proc2 at line 9
+4094: root.test.proc1_1 at line 8
+4094: root.test.proc1 at line 4
+4094: root.test.proc1 at line 4
+4094: root.test.proc1_1 at line 4
+4094: root.test.pkg1.proc2 at line 5
+4094: root.test.proc3 at line 4
 
 SELECT sys.DBMS_UTILITY.FORMAT_ERROR_STACK();
 sys.DBMS_UTILITY.FORMAT_ERROR_STACK()
-a
+1062: Duplicate entry '%-.192sT' for key %d
+4094: root.test.pkg1.proc2 at line 9
+1062: Duplicate entry '%-.192sT' for key %d
+4094: root.test.proc1_1 at line 8
+1172: Result consisted of more than one row
+4094: root.test.proc1 at line 4
+4094: root.test.proc1 at line 4
+4094: root.test.proc1_1 at line 4
+4094: root.test.pkg1.proc2 at line 5
+4094: root.test.proc3 at line 4
+
 #
 # Test FORMAT_BACKTRACE & FORMAT_ERROR_STACK in an exception handler
 #
@@ -81,13 +94,26 @@ SELECT sys.DBMS_UTILITY.FORMAT_ERROR_STACK();
 END;//
 CALL proc4( );
 sys.DBMS_UTILITY.FORMAT_ERROR_BACKTRACE()
-4094: at "root.test.pkg1.proc2" at line 9
-4094: at "root.test.proc1_1" at line 8
-4094: at "root.test.pkg1.proc2" at line 5
-4094: at "root.test.proc4" at line 4
+4094: root.test.pkg1.proc2 at line 9
+4094: root.test.proc1_1 at line 8
+4094: root.test.proc1 at line 4
+4094: root.test.proc1 at line 4
+4094: root.test.proc1_1 at line 4
+4094: root.test.pkg1.proc2 at line 5
+4094: root.test.proc4 at line 4
 
 sys.DBMS_UTILITY.FORMAT_ERROR_STACK()
-a
+1062: Duplicate entry '%-.192sT' for key %d
+4094: root.test.pkg1.proc2 at line 9
+1062: Duplicate entry '%-.192sT' for key %d
+4094: root.test.proc1_1 at line 8
+1172: Result consisted of more than one row
+4094: root.test.proc1 at line 4
+4094: root.test.proc1 at line 4
+4094: root.test.proc1_1 at line 4
+4094: root.test.pkg1.proc2 at line 5
+4094: root.test.proc4 at line 4
+
 DROP PROCEDURE proc4;
 CREATE OR REPLACE PROCEDURE show_errors 
 IS 
@@ -126,10 +152,13 @@ END;
 #
 CALL TEST_PKG.p2public;
 sys.DBMS_UTILITY.FORMAT_ERROR_BACKTRACE()
-4094: at "root.test.proc2" at line 8
-4094: at "root.test.proc1_1" at line 8
-4094: at "root.test.proc2" at line 4
-4094: at "root.test.test_pkg" at line 7
+4094: root.test.proc2 at line 8
+4094: root.test.proc1_1 at line 8
+4094: root.test.proc1 at line 4
+4094: root.test.proc1 at line 4
+4094: root.test.proc1_1 at line 4
+4094: root.test.proc2 at line 4
+4094: root.test.test_pkg at line 7
 
 in p2public
 in p2public
@@ -155,7 +184,26 @@ END;//
 CALL proc3( );
 SELECT sys.DBMS_UTILITY.FORMAT_ERROR_STACK();
 sys.DBMS_UTILITY.FORMAT_ERROR_STACK()
-a
+1062: Duplicate entry '%-.192sT' for key %d
+4094: root.test.pkg1.proc2 at line 9
+3047: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+4094: root.test.proc1_1 at line 8
+3047: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+4094: root.test.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa at line 2
+3047: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+4094: root.test.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb at line 2
+3047: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+4094: root.test.cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc at line 2
+1172: Result consisted of more than one row
+4094: root.test.proc1 at line 4
+4094: root.test.proc1 at line 4
+4094: root.test.cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc at line 2
+4094: root.test.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb at line 2
+4094: root.test.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa at line 2
+4094: root.test.proc1_1 at line 4
+4094: root.test.pkg1.proc2 at line 5
+4094: root.test.proc3 at line 4
+
 DROP PROCEDURE proc1;
 DROP PROCEDURE cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc;
 DROP PROCEDURE bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb;
@@ -177,5 +225,5 @@ sys.DBMS_UTILITY.FORMAT_ERROR_BACKTRACE()
 
 SELECT sys.DBMS_UTILITY.FORMAT_ERROR_STACK();
 sys.DBMS_UTILITY.FORMAT_ERROR_STACK()
-a
+
 DROP PROCEDURE p1;

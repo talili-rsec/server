@@ -7521,19 +7521,42 @@ void THD::reset_for_next_command(bool do_clear_error)
 
 void THD::reset_backtrace_data()
 {
-  first_call= TRUE;
+  first_call= TRUE;                                                                                         
   instr_component_list.clear();
+
+  // Free String objects in error_stack before clearing                                                     
+  for (size_t i = 0; i < error_stack.size(); i++)
+  {                                                                                                           
+    error_stack[i].msg.free();
+  }
   error_stack.clear();
+  // Free String objects in bt_list before clearing                                                         
+  for (size_t i = 0; i < bt_list.size(); i++)
+  {
+    bt_list[i].qname.free();
+  }
   bt_list.clear();
+
+  // Free String objects in erroring_bt_list before clearing
+  for (size_t i = 0; i < erroring_bt_list.size(); i++)
+  {
+    erroring_bt_list[i].qname.free();
+  }
   erroring_bt_list.clear();
   errframes_strs.clear();
   normalframes_strs.clear();
+  // Free String objects in first_2_frames before clearing
+  for (size_t i = 0; i < first_2_frames.size(); i++)
+  {
+    first_2_frames[i].free();
+  }
   first_2_frames.clear();
   variables.backtrace_str= (char*)"";
   variables.errstack_str= (char*)"";
   errstack_str.set("", 0, system_charset_info);
   backtrace_std_str.set("", 0, system_charset_info);
   backtrace_strings_constructed= FALSE;
+  sql_condition_handled= FALSE;
 }
 
 
