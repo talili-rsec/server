@@ -107,8 +107,7 @@ CREATE DEFINER='mariadb.sys'@'localhost' PACKAGE BODY dbms_utility
       '
     AS
     BEGIN
-      RETURN @@errstack_str;
-      #RETURN truncate_to_2000_bytes(@@errstack_str);
+      RETURN truncate_to_2000_bytes(@@errstack_str);
     END;
     FUNCTION get_time RETURN INT
       SQL SECURITY INVOKER
