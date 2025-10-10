@@ -1499,7 +1499,7 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
       }
     }*/
   }
-  if (!thd->bt_list.size())
+  /*if (!thd->bt_list.size())
   {
     int normalframes_strs_size= static_cast<int>(thd->bt_list.size());
     for (int loop_ctr= normalframes_strs_size - 1; loop_ctr >= 0;
@@ -1522,7 +1522,7 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
     {
       thd->first_2_frames[loop_ctr].set_alloced(NULL, 0, 0);
     }
-  }
+  }*/
 
 #if defined(ENABLED_PROFILING)
   thd->profiling.finish_current_query();
@@ -1727,6 +1727,27 @@ void sp_head::construct_dbms_utility_string_line(THD *thd, Dynamic_array<
   append_to_dbms_utility_strings(thd, '\n');
 }
 
+void sp_head::construct_dbms_utility_nonerr_line(THD *thd, String &utility_str,
+    const int loop_ctr) const
+{
+  char err[10]= "";
+  char line_no_str[20]= "";
+
+  sprintf(err, "%i", ER_SP_STACK_TRACE);
+  sprintf(line_no_str, "%i", thd->erroring_bt_list[loop_ctr].line_no);
+
+  utility_str.append({err, strlen(err)});
+  utility_str.append({STRING_WITH_LEN(": ")});
+  utility_str.append({thd->main_security_ctx.user, strlen(
+      thd->main_security_ctx.user)});
+  utility_str.append('.');
+  utility_str.append({thd->erroring_bt_list[loop_ctr].qname.ptr(),
+                                      thd->erroring_bt_list[loop_ctr].qname.length()});
+  utility_str.append({STRING_WITH_LEN(" at line ")});
+  utility_str.append({line_no_str, strlen(line_no_str)});
+  utility_str.append('\n');
+}
+
 void sp_head::construct_dbms_utility_strings(THD *thd) const
 {
   //construct backtrace_str starting with reversed errframes_strs
@@ -1745,13 +1766,13 @@ void sp_head::construct_dbms_utility_strings(THD *thd) const
     thd->errstack_str.append('\n');
 
     //construct string with no err msg
-    construct_dbms_utility_string_line(thd, thd->erroring_bt_list, loop_ctr);
-
+    construct_dbms_utility_nonerr_line(thd, thd->errstack_str, loop_ctr);
   }
+  construct_dbms_utility_nonerr_line(thd, thd->backtrace_std_str, 0);
   //append the non-erroring frames also in reversed order
   int normalframes_strs_size=
       static_cast<int>(thd->bt_list.size()); 
-  for (int loop_ctr= normalframes_strs_size - 1; loop_ctr >= 0;
+  for (int loop_ctr= normalframes_strs_size - 2; loop_ctr >= 0;
       loop_ctr--)
   {
     construct_dbms_utility_string_line(thd, thd->bt_list, loop_ctr);

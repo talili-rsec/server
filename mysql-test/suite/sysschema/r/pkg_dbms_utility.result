@@ -60,9 +60,6 @@ END;//
 CALL proc3( );
 SELECT sys.DBMS_UTILITY.FORMAT_ERROR_BACKTRACE();
 sys.DBMS_UTILITY.FORMAT_ERROR_BACKTRACE()
-4094: root.test.pkg1.proc2 at line 9
-4094: root.test.proc1_1 at line 8
-4094: root.test.proc1 at line 4
 4094: root.test.proc1 at line 4
 4094: root.test.proc1_1 at line 4
 4094: root.test.pkg1.proc2 at line 5
@@ -75,7 +72,6 @@ sys.DBMS_UTILITY.FORMAT_ERROR_STACK()
 1062: Duplicate entry '%-.192sT' for key %d
 4094: root.test.proc1_1 at line 8
 1172: Result consisted of more than one row
-4094: root.test.proc1 at line 4
 4094: root.test.proc1 at line 4
 4094: root.test.proc1_1 at line 4
 4094: root.test.pkg1.proc2 at line 5
@@ -95,9 +91,6 @@ SELECT sys.DBMS_UTILITY.FORMAT_ERROR_STACK();
 END;//
 CALL proc4( );
 sys.DBMS_UTILITY.FORMAT_ERROR_BACKTRACE()
-4094: root.test.pkg1.proc2 at line 9
-4094: root.test.proc1_1 at line 8
-4094: root.test.proc1 at line 4
 4094: root.test.proc1 at line 4
 4094: root.test.proc1_1 at line 4
 4094: root.test.pkg1.proc2 at line 5
@@ -109,7 +102,6 @@ sys.DBMS_UTILITY.FORMAT_ERROR_STACK()
 1062: Duplicate entry '%-.192sT' for key %d
 4094: root.test.proc1_1 at line 8
 1172: Result consisted of more than one row
-4094: root.test.proc1 at line 4
 4094: root.test.proc1 at line 4
 4094: root.test.proc1_1 at line 4
 4094: root.test.pkg1.proc2 at line 5
@@ -153,9 +145,6 @@ END;
 #
 CALL TEST_PKG.p2public;
 sys.DBMS_UTILITY.FORMAT_ERROR_BACKTRACE()
-4094: root.test.proc2 at line 8
-4094: root.test.proc1_1 at line 8
-4094: root.test.proc1 at line 4
 4094: root.test.proc1 at line 4
 4094: root.test.proc1_1 at line 4
 4094: root.test.proc2 at line 4

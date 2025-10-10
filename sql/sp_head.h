@@ -1006,7 +1006,8 @@ protected:
   void construct_dbms_utility_string_line(THD *thd, Dynamic_array<
       Backtrace_info> &, const int) const;
   void construct_dbms_utility_strings(THD *thd) const;
-
+  void construct_dbms_utility_nonerr_line(THD *thd, String &, const int) const;
+  
   /**
     Perform a forward flow analysis in the generated code.
     Mark reachable instructions, for the optimizer.
