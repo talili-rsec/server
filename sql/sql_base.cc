@@ -3898,7 +3898,7 @@ open_and_process_routine(THD *thd, Query_tables_list *prelocking_ctx,
           DBUG_RETURN(TRUE);
 
         /* Ensures the routine is up-to-date and cached, if exists. */
-        if (rt->sp_cache_routine(thd, &sp, &prelocking_strategy))
+        if (rt->sp_cache_routine(thd, &sp))
           DBUG_RETURN(TRUE);
 
         /* Remember the version of the routine in the parse tree. */
@@ -3930,8 +3930,7 @@ open_and_process_routine(THD *thd, Query_tables_list *prelocking_ctx,
             }
           }
         }
-        if (thd->in_dbmssql_execute_context)
-          thd->in_dbmssql_execute_context= false;
+        thd->in_dbmssql_execute_dynamic_mode= false;
       }
       else
       {
@@ -5027,7 +5026,7 @@ bool DML_prelocking_strategy::handle_routine(THD *thd,
   if (rt != (Sroutine_hash_entry*)prelocking_ctx->sroutines_list.first ||
       rt->mdl_request.key.mdl_namespace() != MDL_key::PROCEDURE)
   {
-    if (!thd->in_dbmssql_execute_context)
+    if (!thd->in_dbmssql_execute_dynamic_mode)
       *need_prelocking= TRUE;
     sp_update_stmt_used_routines(thd, prelocking_ctx, &sp->m_sroutines,
                                  rt->belong_to_view);

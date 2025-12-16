@@ -10188,7 +10188,7 @@ bool LEX::add_create_view(THD *thd, DDL_options_st ddl,
 }
 
 
-bool LEX::is_sp_dbmssql_execute(THD *thd)
+bool LEX::is_dbmssql_cursor_execute_call(THD *thd)
 {
   if (!thd->lex->sphead)
     return false;
@@ -11870,7 +11870,7 @@ bool LEX::new_sp_instr_stmt(THD *thd,
   */
   qbuff.str[prefix.length + suffix.length]= 0;
 
-  if (is_sp_dbmssql_execute(thd) && thd->cursor_list.elements())
+  if (is_dbmssql_cursor_execute_call(thd) && thd->cursor_list.elements())
   {
     if (!(i= new (thd->mem_root) sp_instr_stmt_dbmssql_execute(
         sphead->instructions(), spcont, this, qbuff, thd)))

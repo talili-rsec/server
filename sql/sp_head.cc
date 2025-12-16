@@ -264,7 +264,7 @@ sp_get_flags_for_command(LEX *lex)
   case SQLCOM_EXECUTE:
   case SQLCOM_EXECUTE_IMMEDIATE:
   {
-    if (lex->is_sp_dbmssql_execute(lex->thd))
+    if (lex->is_dbmssql_cursor_execute_call(lex->thd))
     {
       flags= 0;
     }
