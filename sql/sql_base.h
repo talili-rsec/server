@@ -551,18 +551,8 @@ inline bool open_and_lock_tables(THD *thd, TABLE_LIST *tables,
   /*char *dbmssql_query_substr= NULL;
   char *query= NULL;*/
   Prelocking_strategy *prelocking_strategy;
-  /*if ((query= thd->query()) && is_valid_pointer2(query) &&
-      (dbmssql_query_substr= strcasestr(query, "dbms_sql"))
-      && strcasestr(dbmssql_query_substr, "execute")) {
-    static DBMS_SQL_prelocking_strategy dbms_strategy;
-    prelocking_strategy = &dbms_strategy;
-  } else {*/
-    static DML_prelocking_strategy dml_strategy;
-    prelocking_strategy = &dml_strategy;
-  //}
-  if (thd->in_dbmssql_execute_context) {
-    flags|= MYSQL_OPEN_IGNORE_FLUSH;
-  }
+  static DML_prelocking_strategy dml_strategy;
+  prelocking_strategy = &dml_strategy;
 
   return open_and_lock_tables(thd, thd->lex->create_info,
                               tables, derived, flags,
