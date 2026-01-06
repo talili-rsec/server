@@ -14,7 +14,9 @@ SELECT SESSION_Value FROM INFORMATION_SCHEMA.SYSTEM_VARIABLES WHERE VARIABLE_NAM
 --echo #
 --echo # Test INITIALIZE
 --echo #
+--disable_warnings
 CALL sys.DBMS_RANDOM.INITIALIZE(1);
+--enable_warnings
 
 --echo #
 --echo # Test INITIALIZE without an argument
