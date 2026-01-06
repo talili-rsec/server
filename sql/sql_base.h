@@ -551,9 +551,6 @@ inline bool open_and_lock_tables(THD *thd, TABLE_LIST *tables,
   Prelocking_strategy *prelocking_strategy;
   static DML_prelocking_strategy dml_strategy;
   prelocking_strategy = &dml_strategy;
-  if (thd->in_dbmssql_execute_context) {
-    flags|= MYSQL_OPEN_IGNORE_FLUSH;
-  }
 
   return open_and_lock_tables(thd, thd->lex->create_info,
                               tables, derived, flags,
