@@ -1719,8 +1719,8 @@ void sp_head::construct_dbms_utility_backtrace_string_line(THD *thd,
     if (strcmp(frames_list[loop_ctr].sphead->m_qname.str, "") &&
         frames_list[loop_ctr].sphead->m_qname.length &&
         frames_list[loop_ctr].sphead->m_qname.length < UINT_MAX32 &&
-        frames_list[loop_ctr].sphead->m_qname.length == strlen(
-            frames_list[loop_ctr].sphead->m_qname.str))
+        frames_list[loop_ctr].sphead->m_qname.length ==
+        strlen(frames_list[loop_ctr].sphead->m_qname.str))
       thd->backtrace_std_str.append({frames_list[loop_ctr].sphead->m_qname.str,
           frames_list[loop_ctr].sphead->m_qname.length});
     thd->backtrace_std_str.append({STRING_WITH_LEN(" at line ")});
