@@ -8586,7 +8586,7 @@ LEX_CSTRING make_string(THD *thd, const char *start_ptr,
                         const char *end_ptr);
 
 #ifdef _WIN32
-static inline int is_valid_pointer2(void *ptr) {
+static inline int is_valid_pointer(void *ptr) {
   if (!ptr)
     return 0;
   MEMORY_BASIC_INFORMATION mbi;
@@ -8596,8 +8596,8 @@ static inline int is_valid_pointer2(void *ptr) {
     return 0;
   if (mbi.Protect & (PAGE_GUARD | PAGE_NOACCESS))
     return 0;
-  // Strip modifier flags (PAGE_GUARD, PAGE_NOCACHE, etc.) to get base protection
-  DWORD base_protect = mbi.Protect & 0xFF;
+  // Strip modifier flags(PAGE_GUARD, PAGE_NOCACHE, etc.) to get base protection
+  DWORD base_protect= mbi.Protect & 0xFF;
   // Reject execute-only pages (all other base protections allow reading)
   if (base_protect == PAGE_EXECUTE)
     return 0;
@@ -8605,10 +8605,10 @@ static inline int is_valid_pointer2(void *ptr) {
   return 1;
 }
 #else
-static inline int is_valid_pointer2(void *ptr) {
-  int fd = open("/dev/random", O_WRONLY);
+static inline int is_valid_pointer(void *ptr) {
+  int fd= open("/dev/random", O_WRONLY);
   if (fd < 0) return 0;
-  int valid = (write(fd, ptr, 1) >= 0);
+  int valid= (write(fd, ptr, 1) >= 0);
   close(fd);
   return valid;
 }

@@ -1746,7 +1746,7 @@ void sp_head::construct_dbms_utility_backtrace_string_line(THD *thd,
 bool sp_head::check_errstack_str_length_and_append(THD *thd, const char *str,
     const size_t str_length, CHARSET_INFO *cs_info) const
 {
-  if (is_valid_pointer2((void *) str) && str_length == strlen(str))
+  if (is_valid_pointer((void *) str) && str_length == strlen(str))
   {
     int byte_length= thd->errstack_str.length();
     if (byte_length + str_length < ERRSTACK_MAX_LEN)
