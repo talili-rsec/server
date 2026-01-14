@@ -50,7 +50,6 @@ public:
 
   ~Backtrace()
   {
-    bt_list.~Dynamic_array();
   }
 
   /**
